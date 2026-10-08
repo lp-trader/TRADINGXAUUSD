@@ -1,0 +1,138 @@
+import React, { useState } from 'react';
+import { GroupPerformance } from '../types/trade';
+import { Clock, Layers, Heart, TrendingUp } from 'lucide-react';
+
+interface MetricsBreakdownProps {
+  sessionStats: GroupPerformance[];
+  setupStats: GroupPerformance[];
+  emotionStats: GroupPerformance[];
+}
+
+export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
+  sessionStats,
+  setupStats,
+  emotionStats
+}) => {
+  const [activeTab, setActiveTab] = useState<'SESION' | 'SETUP' | 'EMOTION'>('SESION');
+
+  const currentStats = 
+    activeTab === 'SESION' ? sessionStats :
+    activeTab === 'SETUP' ? setupStats : emotionStats;
+
+  return (
+    <section className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-xl mb-8">
+      {/* Header and Filter Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-heading text-lg sm:text-xl font-bold text-white tracking-tight">
+              Rendimiento por Categoría
+            </h3>
+            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-neutral-300 border border-white/[0.08]">
+              Análisis Estadístico
+            </span>
+          </div>
+          <p className="text-xs text-neutral-400 mt-1">
+            Resultado neto y Win Rate agrupados por Sesión, Setup operativo y Estado emocional
+          </p>
+        </div>
+
+        {/* Tab Selector */}
+        <div className="flex items-center p-1 bg-white/[0.03] rounded-2xl border border-white/[0.08] self-start sm:self-auto">
+          <button
+            onClick={() => setActiveTab('SESION')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-xl transition-all ${
+              activeTab === 'SESION'
+                ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Por Sesión</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('SETUP')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-xl transition-all ${
+              activeTab === 'SETUP'
+                ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Por Setup</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('EMOTION')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-xl transition-all ${
+              activeTab === 'EMOTION'
+                ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <Heart className="w-3.5 h-3.5" />
+            <span>Por Emoción</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Grid of performance cards / bars */}
+      {currentStats.length === 0 ? (
+        <div className="p-8 text-center text-xs text-neutral-500">
+          No hay suficientes datos registrados para esta categoría.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {currentStats.map((item) => {
+            const isProfit = item.netProfit >= 0;
+            return (
+              <div
+                key={item.name}
+                className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-colors flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-heading text-sm font-bold text-white block">
+                      {item.name}
+                    </span>
+                    <span className="text-[11px] text-neutral-400 font-mono mt-0.5 block">
+                      {item.count} {item.count === 1 ? 'operación' : 'operaciones'} ({item.winCount}W - {item.count - item.winCount}L)
+                    </span>
+                  </div>
+
+                  <div className="text-right">
+                    <span className={`font-mono text-base font-bold tabular-nums block ${
+                      isProfit ? 'text-[#34C97A]' : 'text-[#FF6B60]'
+                    }`}>
+                      {isProfit ? '+' : ''}${item.netProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-xs font-mono font-medium text-neutral-300">
+                      {item.winRate.toFixed(1)}% WR
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar visual for win rate */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-neutral-500 font-mono">
+                    <span>Efectividad</span>
+                    <span>{item.winRate.toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        isProfit ? 'bg-gradient-to-r from-[#34C97A] to-[#259b5c]' : 'bg-[#FF6B60]'
+                      }`}
+                      style={{ width: `${Math.max(item.winRate, 5)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+};

@@ -1,0 +1,6 @@
+{
+  "name": "Trading Journal - Portafolio XAU/USD",
+  "description": "Portafolio y diario de trading institucional de XAU/USD para cuentas fondeadas con métricas en tiempo real, curva de equity y galería de setups.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
