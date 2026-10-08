@@ -136,7 +136,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredTrades.map((trade) => {
             const isWin = trade.money >= 0;
-            const isCompra = trade.direccion === 'COMPRA';
+            const isBuy = trade.direccion === 'Buy';
 
             return (
               <div
@@ -149,7 +149,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                   {trade.imageUrl ? (
                     <img
                       src={trade.imageUrl}
-                      alt={`Trade ${trade.activo} - ${trade.setup}`}
+                      alt={`Trade ${trade.activo || ''} - ${trade.setup || ''}`}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
@@ -161,8 +161,8 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-neutral-500 bg-gradient-to-br from-[#12151E] to-[#0B0D12] p-4 text-center">
                       <ImageIcon className="w-8 h-8 text-[#E0B341]/40 mb-2" />
-                      <span className="text-xs font-mono text-neutral-400">{trade.activo}</span>
-                      <span className="text-[11px] text-neutral-500">{trade.setup}</span>
+                      <span className="text-xs font-mono text-neutral-400">{trade.activo || '—'}</span>
+                      <span className="text-[11px] text-neutral-500">{trade.setup || '—'}</span>
                     </div>
                   )}
 
@@ -170,24 +170,24 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                   <div className="absolute top-3 left-3 flex items-center gap-1.5">
                     {/* Direction Tag */}
                     <span className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold tracking-wide flex items-center gap-1 backdrop-blur-md ${
-                      isCompra
+                      isBuy
                         ? 'bg-[#34C97A]/85 text-black shadow-sm'
                         : 'bg-[#FF6B60]/85 text-white shadow-sm'
                     }`}>
-                      {isCompra ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                      {trade.direccion}
+                      {isBuy ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      {trade.direccion || '—'}
                     </span>
 
                     {/* Asset */}
                     <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-[#0B0D12]/80 text-[#E0B341] border border-[#E0B341]/30 backdrop-blur-md">
-                      {trade.activo}
+                      {trade.activo || '—'}
                     </span>
                   </div>
 
                   {/* Session Badge */}
                   <div className="absolute top-3 right-3">
                     <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#0B0D12]/80 text-neutral-300 backdrop-blur-md border border-white/[0.1]">
-                      {trade.sesion}
+                      {trade.sesion || '—'}
                     </span>
                   </div>
 
@@ -195,10 +195,10 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0B0D12] via-[#0B0D12]/80 to-transparent p-3 pt-6 flex items-end justify-between">
                     <div>
                       <span className="text-[10px] font-mono text-neutral-400 block">
-                        {trade.fecha}
+                        {trade.fecha || '—'}
                       </span>
                       <span className="font-heading text-xs font-bold text-white truncate max-w-[170px] block">
-                        {trade.setup}
+                        {trade.setup || '—'}
                       </span>
                     </div>
 
@@ -206,13 +206,24 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                       <div className={`font-heading text-lg font-bold tabular-nums leading-none ${
                         isWin ? 'text-[#34C97A]' : 'text-[#FF6B60]'
                       }`}>
-                        {isWin ? '+' : ''}${trade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {trade.money != null && !isNaN(trade.money)
+                          ? `${isWin ? '+' : ''}$${trade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                          : '—'}
                       </div>
-                      {trade.rrPlanificado > 0 && (
-                        <span className="text-[10px] font-mono text-neutral-400">
-                          1:{trade.rrPlanificado.toFixed(2)} R:R
-                        </span>
-                      )}
+                      <div className="flex items-center justify-end gap-1.5 mt-1">
+                        {trade.rReal != null && !isNaN(trade.rReal) ? (
+                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                            trade.rReal >= 0 ? 'bg-[#34C97A]/25 text-[#34C97A]' : 'bg-[#FF6B60]/25 text-[#FF6B60]'
+                          }`}>
+                            {trade.rReal >= 0 ? '+' : ''}{trade.rReal.toFixed(2)}R
+                          </span>
+                        ) : null}
+                        {trade.rrPlanificado > 0 && !isNaN(trade.rrPlanificado) && (
+                          <span className="text-[10px] font-mono text-neutral-400">
+                            1:{trade.rrPlanificado.toFixed(2)} R:R
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -220,12 +231,14 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                 {/* Card Body Details */}
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-2 bg-[#0B0D12]/40">
                   <div className="flex items-center justify-between text-xs text-neutral-400">
-                    <div className="flex items-center gap-1.5 font-mono">
-                      <span>In: {trade.entrada.toFixed(2)}</span>
+                    <div className="flex items-center gap-1.5 font-mono flex-wrap">
+                      <span>In: {trade.entrada != null && !isNaN(trade.entrada) ? trade.entrada.toFixed(2) : '—'}</span>
                       <span>·</span>
-                      <span>SL: {trade.sl.toFixed(2)}</span>
+                      <span className="text-[#E0B341]">Out: {trade.salida != null && !isNaN(trade.salida) ? trade.salida.toFixed(2) : '—'}</span>
                       <span>·</span>
-                      <span>TP: {trade.tp.toFixed(2)}</span>
+                      <span className="text-[#FF6B60]">SL: {trade.sl != null && !isNaN(trade.sl) ? trade.sl.toFixed(2) : '—'}</span>
+                      <span>·</span>
+                      <span className="text-[#34C97A]">TP: {trade.tp != null && !isNaN(trade.tp) ? trade.tp.toFixed(2) : '—'}</span>
                     </div>
                   </div>
 
@@ -237,10 +250,10 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
 
                   <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between text-xs">
                     <span className="text-[11px] font-medium text-neutral-400">
-                      Emoción: <strong className="text-neutral-200">{trade.emotion}</strong>
+                      Emoción: <strong className="text-neutral-200">{trade.emotion || '—'}</strong>
                     </span>
                     <span className="text-[11px] font-medium text-[#E0B341] group-hover:underline">
-                      Ver lightbox →
+                      Ver detalle →
                     </span>
                   </div>
                 </div>

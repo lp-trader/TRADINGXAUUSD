@@ -105,11 +105,22 @@ export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
                     <span className={`font-mono text-base font-bold tabular-nums block ${
                       isProfit ? 'text-[#34C97A]' : 'text-[#FF6B60]'
                     }`}>
-                      {isProfit ? '+' : ''}${item.netProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {item.netProfit != null && !isNaN(item.netProfit)
+                        ? `${isProfit ? '+' : ''}$${item.netProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                        : '—'}
                     </span>
-                    <span className="text-xs font-mono font-medium text-neutral-300">
-                      {item.winRate.toFixed(1)}% WR
-                    </span>
+                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                      <span className="text-xs font-mono font-medium text-neutral-300">
+                        {item.winRate != null && !isNaN(item.winRate) ? `${item.winRate.toFixed(1)}% WR` : '—'}
+                      </span>
+                      {item.avgRealR !== undefined && item.avgRealR !== null && !isNaN(item.avgRealR) && (
+                        <span className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                          item.avgRealR >= 0 ? 'bg-[#34C97A]/15 text-[#34C97A]' : 'bg-[#FF6B60]/15 text-[#FF6B60]'
+                        }`}>
+                          {item.avgRealR >= 0 ? '+' : ''}{item.avgRealR.toFixed(2)}R
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

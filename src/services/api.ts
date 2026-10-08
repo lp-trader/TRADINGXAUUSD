@@ -29,13 +29,41 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
   const tp = Number(raw.TP) || 0;
   const money = Number(raw.MONEY) || 0;
 
-  // Deduce direction: si SL < ENTRADA es compra, si SL > ENTRADA es venta
-  const direccion: 'COMPRA' | 'VENTA' = sl < entrada ? 'COMPRA' : 'VENTA';
+  // 1. DIRECCION: selector con "Buy" y "Sell". Si una fila antigua no lo tiene, usa la deducción como respaldo.
+  let direccion: 'Buy' | 'Sell';
+  const rawDir = String(raw.DIRECCION || '').trim().toLowerCase();
+  if (rawDir === 'buy' || rawDir === 'compra') {
+    direccion = 'Buy';
+  } else if (rawDir === 'sell' || rawDir === 'venta') {
+    direccion = 'Sell';
+  } else {
+    // Respaldo para filas antiguas: si SL < ENTRADA es Buy, si no es Sell
+    direccion = sl < entrada ? 'Buy' : 'Sell';
+  }
+
+  // 2. SALIDA: precio de salida del trade
+  let salida: number | null = null;
+  if (raw.SALIDA !== undefined && raw.SALIDA !== null && String(raw.SALIDA).trim() !== '') {
+    const parsedSalida = Number(raw.SALIDA);
+    if (!isNaN(parsedSalida)) {
+      salida = parsedSalida;
+    }
+  }
 
   // Planned Risk/Reward ratio: |TP - ENTRADA| / |ENTRADA - SL|
   const risk = Math.abs(entrada - sl);
   const reward = Math.abs(tp - entrada);
   const rrPlanificado = risk > 0 ? Math.round((reward / risk) * 100) / 100 : 0;
+
+  // R Real: R = (SALIDA - ENTRADA) × (1 si Buy, -1 si Sell) / |ENTRADA - SL|
+  let rReal: number | null = null;
+  if (salida !== null && !isNaN(salida) && risk > 0) {
+    const mult = direccion === 'Buy' ? 1 : -1;
+    const calcR = ((salida - entrada) * mult) / risk;
+    if (!isNaN(calcR) && isFinite(calcR)) {
+      rReal = Math.round(calcR * 100) / 100;
+    }
+  }
 
   const rawImage = String(raw.IMAGEN || '').trim();
   let imageUrl = '';
@@ -51,7 +79,9 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     id: String(raw.ID || `T-${fallbackIndex + 1}`),
     fecha: String(raw.FECHA || new Date().toISOString().split('T')[0]),
     activo: String(raw.ACTIVO || 'XAU/USD').toUpperCase(),
+    direccion,
     entrada,
+    salida,
     sl,
     tp,
     money,
@@ -61,8 +91,8 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     leccion: String(raw.LECCION || ''),
     imagen: rawImage,
     imageUrl,
-    direccion,
-    rrPlanificado
+    rrPlanificado,
+    rReal
   };
 }
 

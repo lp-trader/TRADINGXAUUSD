@@ -18,7 +18,9 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
 }) => {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [activo, setActivo] = useState('XAU/USD');
+  const [direccion, setDireccion] = useState<'Buy' | 'Sell'>('Buy');
   const [entrada, setEntrada] = useState<string>('');
+  const [salida, setSalida] = useState<string>('');
   const [sl, setSl] = useState<string>('');
   const [tp, setTp] = useState<string>('');
   const [money, setMoney] = useState<string>('');
@@ -72,12 +74,13 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
     }
 
     const numEntrada = parseFloat(entrada);
+    const numSalida = parseFloat(salida);
     const numSl = parseFloat(sl);
     const numTp = parseFloat(tp);
     const numMoney = parseFloat(money);
 
-    if (isNaN(numEntrada) || isNaN(numSl) || isNaN(numTp) || isNaN(numMoney)) {
-      setErrorMessage('Por favor ingresa números válidos para Entrada, SL, TP y MONEY.');
+    if (isNaN(numEntrada) || isNaN(numSalida) || isNaN(numSl) || isNaN(numTp) || isNaN(numMoney)) {
+      setErrorMessage('Por favor ingresa números válidos para Entrada, Salida, SL, TP y MONEY.');
       return;
     }
 
@@ -100,7 +103,9 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
         trade: {
           FECHA: fecha,
           ACTIVO: activo.toUpperCase().trim() || 'XAU/USD',
+          DIRECCION: direccion,
           ENTRADA: numEntrada,
+          SALIDA: numSalida,
           SL: numSl,
           TP: numTp,
           MONEY: numMoney,
@@ -129,6 +134,19 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  // Live calculation preview
+  const numEnt = parseFloat(entrada);
+  const numSal = parseFloat(salida);
+  const numS = parseFloat(sl);
+  const numT = parseFloat(tp);
+  const risk = !isNaN(numEnt) && !isNaN(numS) ? Math.abs(numEnt - numS) : 0;
+  const liveRReal = !isNaN(numEnt) && !isNaN(numSal) && !isNaN(numS) && risk > 0
+    ? Math.round((((numSal - numEnt) * (direccion === 'Buy' ? 1 : -1)) / risk) * 100) / 100
+    : null;
+  const liveRRPlan = !isNaN(numEnt) && !isNaN(numT) && !isNaN(numS) && risk > 0
+    ? Math.round((Math.abs(numT - numEnt) / risk) * 100) / 100
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -175,10 +193,10 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
             </div>
           )}
 
-          {/* Fecha & Activo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* 1. FECHA, 2. ACTIVO, 3. DIRECCION */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-neutral-300 block mb-1 font-medium">Fecha (FECHA)</label>
+              <label className="text-xs text-neutral-300 block mb-1 font-medium">1. Fecha (FECHA)</label>
               <input
                 type="date"
                 value={fecha}
@@ -188,7 +206,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               />
             </div>
             <div>
-              <label className="text-xs text-neutral-300 block mb-1 font-medium">Activo (ACTIVO)</label>
+              <label className="text-xs text-neutral-300 block mb-1 font-medium">2. Activo (ACTIVO)</label>
               <input
                 type="text"
                 value={activo}
@@ -198,17 +216,32 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                 required
               />
             </div>
+            <div>
+              <label className="text-xs text-neutral-300 block mb-1 font-medium">3. Dirección (DIRECCION)</label>
+              <select
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value as 'Buy' | 'Sell')}
+                className={`w-full text-xs font-bold font-mono px-3 py-2.5 rounded-xl border transition-colors focus:outline-none ${
+                  direccion === 'Buy'
+                    ? 'bg-[#34C97A]/15 text-[#34C97A] border-[#34C97A]/40'
+                    : 'bg-[#FF6B60]/15 text-[#FF6B60] border-[#FF6B60]/40'
+                }`}
+              >
+                <option value="Buy" className="bg-[#10141D] text-[#34C97A]">Buy</option>
+                <option value="Sell" className="bg-[#10141D] text-[#FF6B60]">Sell</option>
+              </select>
+            </div>
           </div>
 
-          {/* Prices: Entrada, SL, TP, MONEY */}
+          {/* 4. ENTRADA, 5. SALIDA, 6. SL, 7. TP, 8. MONEY */}
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">
             <span className="text-[11px] font-semibold text-[#E0B341] uppercase tracking-wider block">
               Parámetros de Ejecución
             </span>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <div>
-                <label className="text-[11px] text-neutral-400 block mb-1">Entrada</label>
+                <label className="text-[11px] text-neutral-400 block mb-1">4. Entrada</label>
                 <input
                   type="number"
                   step="0.01"
@@ -221,7 +254,20 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] text-[#FF6B60] block mb-1">Stop Loss (SL)</label>
+                <label className="text-[11px] text-[#E0B341] block mb-1 font-medium">5. Salida</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={salida}
+                  onChange={(e) => setSalida(e.target.value)}
+                  placeholder="2665.00"
+                  className="w-full bg-white/[0.04] text-sm text-[#E0B341] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-[#FF6B60] block mb-1">6. Stop Loss (SL)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -234,7 +280,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] text-[#34C97A] block mb-1">Take Profit (TP)</label>
+                <label className="text-[11px] text-[#34C97A] block mb-1">7. Take Profit (TP)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -246,8 +292,8 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="text-[11px] text-neutral-300 block mb-1 font-medium">Resultado ($ MONEY)</label>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-[11px] text-neutral-300 block mb-1 font-medium">8. Resultado ($ MONEY)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -262,29 +308,33 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               </div>
             </div>
 
-            {/* Inferred direction & R:R pill */}
-            {entrada && sl && !isNaN(parseFloat(entrada)) && !isNaN(parseFloat(sl)) && (
-              <div className="flex items-center gap-3 pt-1 text-xs font-mono">
-                <span className="text-neutral-400">
-                  Dirección:{' '}
-                  <strong className={parseFloat(sl) < parseFloat(entrada) ? 'text-[#34C97A]' : 'text-[#FF6B60]'}>
-                    {parseFloat(sl) < parseFloat(entrada) ? 'COMPRA (SL < Entrada)' : 'VENTA (SL > Entrada)'}
-                  </strong>
+            {/* Live calculation badges for instant trader feedback */}
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono">
+              <span className="text-neutral-400">
+                Dirección seleccionada:{' '}
+                <strong className={direccion === 'Buy' ? 'text-[#34C97A]' : 'text-[#FF6B60]'}>
+                  {direccion}
+                </strong>
+              </span>
+
+              {liveRReal !== null && (
+                <span className={liveRReal >= 0 ? 'text-[#34C97A]' : 'text-[#FF6B60]'}>
+                  R Real estimado: <strong>{liveRReal >= 0 ? '+' : ''}{liveRReal.toFixed(2)}R</strong>
                 </span>
-                {tp && !isNaN(parseFloat(tp)) && Math.abs(parseFloat(entrada) - parseFloat(sl)) > 0 && (
-                  <span className="text-[#E0B341]">
-                    R:R Planeado:{' '}
-                    1:{(Math.abs(parseFloat(tp) - parseFloat(entrada)) / Math.abs(parseFloat(entrada) - parseFloat(sl))).toFixed(2)}
-                  </span>
-                )}
-              </div>
-            )}
+              )}
+
+              {liveRRPlan !== null && (
+                <span className="text-[#E0B341]">
+                  R:R Planeado: <strong>1:{liveRRPlan.toFixed(2)}</strong>
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Setup, Sesión, Emoción */}
+          {/* 9. SETUP, 10. SESION, 11. EMOTION */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-neutral-300 block mb-1 font-medium">Setup (SETUP)</label>
+              <label className="text-xs text-neutral-300 block mb-1 font-medium">9. Setup (SETUP)</label>
               <input
                 type="text"
                 value={setup}
@@ -296,7 +346,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
             </div>
 
             <div>
-              <label className="text-xs text-neutral-300 block mb-1 font-medium">Sesión (SESION)</label>
+              <label className="text-xs text-neutral-300 block mb-1 font-medium">10. Sesión (SESION)</label>
               <select
                 value={sesion}
                 onChange={(e) => setSesion(e.target.value as any)}
@@ -309,7 +359,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
             </div>
 
             <div>
-              <label className="text-xs text-neutral-300 block mb-1 font-medium">Emoción (EMOTION)</label>
+              <label className="text-xs text-neutral-300 block mb-1 font-medium">11. Emoción (EMOTION)</label>
               <select
                 value={emotion}
                 onChange={(e) => setEmotion(e.target.value as any)}
@@ -324,10 +374,10 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
             </div>
           </div>
 
-          {/* Lección */}
+          {/* 12. LECCION */}
           <div>
             <label className="text-xs text-neutral-300 block mb-1 font-medium">
-              Lección & Conclusión (LECCION)
+              12. Lección & Conclusión (LECCION)
             </label>
             <textarea
               rows={2}
@@ -338,10 +388,10 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
             />
           </div>
 
-          {/* Image Upload with Canvas Resize */}
+          {/* 13. IMAGEN (Captura del Gráfico) */}
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-2">
             <span className="text-xs font-semibold text-[#E0B341] uppercase tracking-wider block">
-              Captura del Gráfico
+              13. Captura del Gráfico
             </span>
 
             <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-white/[0.12] hover:border-[#E0B341]/50 rounded-2xl cursor-pointer bg-white/[0.01] hover:bg-white/[0.03] transition-all">

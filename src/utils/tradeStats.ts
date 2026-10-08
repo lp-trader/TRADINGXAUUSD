@@ -12,6 +12,7 @@ export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
       grossLoss: 0,
       profitFactor: 0,
       avgPlannedRR: 0,
+      avgRealR: null,
       bestTrade: null,
       worstTrade: null
     };
@@ -23,6 +24,8 @@ export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
   let grossLoss = 0;
   let totalPlannedRR = 0;
   let countPlannedRR = 0;
+  let totalRealR = 0;
+  let countRealR = 0;
 
   let bestTrade: Trade | null = null;
   let worstTrade: Trade | null = null;
@@ -42,6 +45,11 @@ export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
       countPlannedRR++;
     }
 
+    if (trade.rReal !== null && !isNaN(trade.rReal) && isFinite(trade.rReal)) {
+      totalRealR += trade.rReal;
+      countRealR++;
+    }
+
     if (!bestTrade || money > bestTrade.money) {
       bestTrade = trade;
     }
@@ -55,6 +63,7 @@ export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
   const netProfit = grossProfit - grossLoss;
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99.9 : 0);
   const avgPlannedRR = countPlannedRR > 0 ? totalPlannedRR / countPlannedRR : 0;
+  const avgRealR = countRealR > 0 ? Math.round((totalRealR / countRealR) * 100) / 100 : null;
 
   return {
     totalTrades,
@@ -66,6 +75,7 @@ export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
     grossLoss: Math.round(grossLoss * 100) / 100,
     profitFactor: Math.round(profitFactor * 100) / 100,
     avgPlannedRR: Math.round(avgPlannedRR * 100) / 100,
+    avgRealR,
     bestTrade,
     worstTrade
   };
@@ -99,15 +109,19 @@ function calculateGroupStats(
   trades: Trade[],
   groupByFn: (trade: Trade) => string
 ): GroupPerformance[] {
-  const map = new Map<string, { count: number; netProfit: number; winCount: number }>();
+  const map = new Map<string, { count: number; netProfit: number; winCount: number; totalRealR: number; countRealR: number }>();
 
   trades.forEach((trade) => {
     const key = groupByFn(trade) || 'Otro';
-    const current = map.get(key) || { count: 0, netProfit: 0, winCount: 0 };
+    const current = map.get(key) || { count: 0, netProfit: 0, winCount: 0, totalRealR: 0, countRealR: 0 };
     current.count++;
     current.netProfit += trade.money;
     if (trade.money > 0) {
       current.winCount++;
+    }
+    if (trade.rReal !== null && !isNaN(trade.rReal) && isFinite(trade.rReal)) {
+      current.totalRealR += trade.rReal;
+      current.countRealR++;
     }
     map.set(key, current);
   });
@@ -118,7 +132,8 @@ function calculateGroupStats(
       count: data.count,
       netProfit: Math.round(data.netProfit * 100) / 100,
       winCount: data.winCount,
-      winRate: data.count > 0 ? Math.round((data.winCount / data.count) * 1000) / 10 : 0
+      winRate: data.count > 0 ? Math.round((data.winCount / data.count) * 1000) / 10 : 0,
+      avgRealR: data.countRealR > 0 ? Math.round((data.totalRealR / data.countRealR) * 100) / 100 : null
     }))
     .sort((a, b) => b.netProfit - a.netProfit);
 }

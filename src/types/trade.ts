@@ -2,7 +2,9 @@ export interface RawTrade {
   ID?: string | number;
   FECHA?: string;
   ACTIVO?: string;
+  DIRECCION?: string;
   ENTRADA?: number | string;
+  SALIDA?: number | string;
   SL?: number | string;
   TP?: number | string;
   MONEY?: number | string;
@@ -17,7 +19,9 @@ export interface Trade {
   id: string;
   fecha: string; // YYYY-MM-DD
   activo: string; // XAU/USD
+  direccion: 'Buy' | 'Sell';
   entrada: number;
+  salida: number | null;
   sl: number;
   tp: number;
   money: number; // positive = win, negative = loss
@@ -27,8 +31,8 @@ export interface Trade {
   leccion: string;
   imagen: string; // Google Drive ID
   imageUrl: string; // full drive thumbnail URL or fallback
-  direccion: 'COMPRA' | 'VENTA';
   rrPlanificado: number; // |TP - ENTRADA| / |ENTRADA - SL|
+  rReal: number | null; // (SALIDA - ENTRADA) * (1 si Buy, -1 si Sell) / |ENTRADA - SL|
 }
 
 export interface TradePayload {
@@ -36,7 +40,9 @@ export interface TradePayload {
   trade: {
     FECHA: string;
     ACTIVO: string;
+    DIRECCION: 'Buy' | 'Sell';
     ENTRADA: number;
+    SALIDA: number;
     SL: number;
     TP: number;
     MONEY: number;
@@ -61,6 +67,7 @@ export interface DashboardMetrics {
   grossLoss: number;
   profitFactor: number;
   avgPlannedRR: number;
+  avgRealR: number | null;
   bestTrade: Trade | null;
   worstTrade: Trade | null;
 }
@@ -80,4 +87,5 @@ export interface GroupPerformance {
   netProfit: number;
   winCount: number;
   winRate: number;
+  avgRealR?: number | null;
 }

@@ -78,10 +78,36 @@
       const sl = Number(raw.SL) || 0;
       const tp = Number(raw.TP) || 0;
       const money = Number(raw.MONEY) || 0;
-      const direccion = sl < entrada ? 'COMPRA' : 'VENTA';
+      
+      let direccion = 'Buy';
+      const rawDir = String(raw.DIRECCION || '').trim().toLowerCase();
+      if (rawDir === 'buy' || rawDir === 'compra') {
+        direccion = 'Buy';
+      } else if (rawDir === 'sell' || rawDir === 'venta') {
+        direccion = 'Sell';
+      } else {
+        direccion = sl < entrada ? 'Buy' : 'Sell';
+      }
+
+      let salida = null;
+      if (raw.SALIDA !== undefined && raw.SALIDA !== null && String(raw.SALIDA).trim() !== '') {
+        const pSalida = Number(raw.SALIDA);
+        if (!isNaN(pSalida)) salida = pSalida;
+      }
+
       const risk = Math.abs(entrada - sl);
       const reward = Math.abs(tp - entrada);
       const rr = risk > 0 ? Math.round((reward / risk) * 100) / 100 : 0;
+      
+      let rReal = null;
+      if (salida !== null && !isNaN(salida) && risk > 0) {
+        const mult = direccion === 'Buy' ? 1 : -1;
+        const calcR = ((salida - entrada) * mult) / risk;
+        if (!isNaN(calcR) && isFinite(calcR)) {
+          rReal = Math.round(calcR * 100) / 100;
+        }
+      }
+
       const rawImg = String(raw.IMAGEN || '').trim();
       let imageUrl = '';
       if (rawImg) {
@@ -91,7 +117,7 @@
         id: String(raw.ID || `T-${idx + 1}`),
         fecha: String(raw.FECHA || ''),
         activo: String(raw.ACTIVO || 'XAU/USD').toUpperCase(),
-        entrada, sl, tp, money,
+        entrada, salida, sl, tp, money,
         setup: String(raw.SETUP || 'General'),
         sesion: String(raw.SESION || 'Nueva York'),
         emotion: String(raw.EMOTION || 'Calmado'),
@@ -99,7 +125,8 @@
         imagen: rawImg,
         imageUrl,
         direccion,
-        rrPlanificado: rr
+        rrPlanificado: rr,
+        rReal
       };
     }
 
@@ -190,13 +217,14 @@
 
       // Metrics
       const metrics = useMemo(() => {
-        if (!trades.length) return { total: 0, wins: 0, winRate: 0, net: 0, pf: 0, rr: 0, best: null, worst: null };
-        let wins = 0, grossWin = 0, grossLoss = 0, totalRR = 0, countRR = 0;
+        if (!trades.length) return { total: 0, wins: 0, winRate: 0, net: 0, pf: 0, rr: 0, avgRealR: null, best: null, worst: null };
+        let wins = 0, grossWin = 0, grossLoss = 0, totalRR = 0, countRR = 0, totalRealR = 0, countRealR = 0;
         let best = null, worst = null;
         trades.forEach(t => {
           if (t.money > 0) { wins++; grossWin += t.money; }
           else if (t.money < 0) { grossLoss += Math.abs(t.money); }
           if (t.rrPlanificado > 0) { totalRR += t.rrPlanificado; countRR++; }
+          if (t.rReal !== null && !isNaN(t.rReal)) { totalRealR += t.rReal; countRealR++; }
           if (!best || t.money > best.money) best = t;
           if (!worst || t.money < worst.money) worst = t;
         });
@@ -204,7 +232,8 @@
         const winRate = (wins / trades.length) * 100;
         const pf = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? 99.9 : 0);
         const rr = countRR > 0 ? totalRR / countRR : 0;
-        return { total: trades.length, wins, winRate, net, pf, rr, best, worst };
+        const avgRealR = countRealR > 0 ? totalRealR / countRealR : null;
+        return { total: trades.length, wins, winRate, net, pf, rr, avgRealR, best, worst };
       }, [trades]);
 
       // Equity points
@@ -283,20 +312,26 @@
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:w-80 shrink-0">
+                <div className="grid grid-cols-2 gap-3 sm:w-96 shrink-0">
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
                     <span className="text-[11px] text-neutral-400 block">Win Rate</span>
-                    <span className="font-heading text-xl font-bold text-white tabular-nums">{metrics.winRate.toFixed(1)}%</span>
+                    <span className="font-heading text-xl font-bold text-white tabular-nums">{!trades.length ? '—' : `${metrics.winRate.toFixed(1)}%`}</span>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
                     <span className="text-[11px] text-neutral-400 block">Profit Factor</span>
-                    <span className="font-heading text-xl font-bold text-[#E0B341] tabular-nums">{metrics.pf.toFixed(2)}</span>
+                    <span className="font-heading text-xl font-bold text-[#E0B341] tabular-nums">{!trades.length ? '—' : metrics.pf.toFixed(2)}</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                    <span className="text-[11px] text-neutral-400 block">R Real Promedio</span>
+                    <span className={`font-heading text-xl font-bold tabular-nums ${metrics.avgRealR === null ? 'text-neutral-400' : metrics.avgRealR >= 0 ? 'text-[#34C97A]' : 'text-[#FF6B60]'}`}>
+                      {metrics.avgRealR === null ? '—' : `${metrics.avgRealR >= 0 ? '+' : ''}${metrics.avgRealR.toFixed(2)}R`}
+                    </span>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
                     <span className="text-[11px] text-neutral-400 block">R:R Planeado</span>
-                    <span className="font-heading text-xl font-bold text-[#34C97A] tabular-nums">1:{metrics.rr.toFixed(2)}</span>
+                    <span className="font-heading text-xl font-bold text-neutral-200 tabular-nums">{!trades.length || metrics.rr === 0 ? '—' : `1:${metrics.rr.toFixed(2)}`}</span>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] col-span-2">
                     <span className="text-[11px] text-neutral-400 block">Trades Totales</span>
                     <span className="font-heading text-xl font-bold text-white tabular-nums">{metrics.total}</span>
                   </div>
@@ -323,27 +358,35 @@
                     <div key={t.id} onClick={() => setSelectedTrade(t)} className="glass-panel rounded-2xl overflow-hidden hover:border-[#E0B341]/40 cursor-pointer transition-all hover:-translate-y-1">
                       <div className="aspect-video bg-neutral-900 relative">
                         {t.imageUrl ? (
-                          <img src={t.imageUrl} alt={t.setup} className="w-full h-full object-cover" />
+                          <img src={t.imageUrl} alt={t.setup || ''} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-xs text-neutral-500">Sin gráfico</div>
                         )}
-                        <span className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold ${t.direccion === 'COMPRA' ? 'bg-[#34C97A] text-black' : 'bg-[#FF6B60] text-white'}`}>
+                        <span className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold ${t.direccion === 'Buy' ? 'bg-[#34C97A] text-black' : 'bg-[#FF6B60] text-white'}`}>
                           {t.direccion}
                         </span>
                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 p-3 flex justify-between items-end">
                           <div>
-                            <span className="text-[10px] font-mono text-neutral-400 block">{t.fecha}</span>
-                            <span className="font-heading text-xs font-bold text-white block">{t.setup}</span>
+                            <span className="text-[10px] font-mono text-neutral-400 block">{t.fecha || '—'}</span>
+                            <span className="font-heading text-xs font-bold text-white block">{t.setup || '—'}</span>
                           </div>
-                          <span className={`font-heading text-base font-bold ${t.money >= 0 ? 'text-[#34C97A]' : 'text-[#FF6B60]'}`}>
-                            {t.money >= 0 ? '+' : ''}${t.money.toFixed(2)}
-                          </span>
+                          <div className="text-right">
+                            <span className={`font-heading text-base font-bold block ${t.money >= 0 ? 'text-[#34C97A]' : 'text-[#FF6B60]'}`}>
+                              {t.money >= 0 ? '+' : ''}${t.money.toFixed(2)}
+                            </span>
+                            {t.rReal !== null && (
+                              <span className={`text-[10px] font-mono font-bold ${t.rReal >= 0 ? 'text-[#34C97A]' : 'text-[#FF6B60]'}`}>
+                                {t.rReal >= 0 ? '+' : ''}{t.rReal.toFixed(2)}R
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="p-3 text-xs text-neutral-400 flex justify-between font-mono">
-                        <span>In: {t.entrada}</span>
-                        <span>SL: {t.sl}</span>
-                        <span>TP: {t.tp}</span>
+                        <span>In: {t.entrada ?? '—'}</span>
+                        <span className="text-[#E0B341]">Out: {t.salida ?? '—'}</span>
+                        <span>SL: {t.sl ?? '—'}</span>
+                        <span>TP: {t.tp ?? '—'}</span>
                       </div>
                     </div>
                   ))}

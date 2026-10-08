@@ -46,6 +46,7 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
   const animatedWinRate = useAnimatedNumber(metrics.winRate, 900, hasTrades);
   const animatedProfitFactor = useAnimatedNumber(metrics.profitFactor, 900, hasTrades);
   const animatedAvgRR = useAnimatedNumber(metrics.avgPlannedRR, 900, hasTrades);
+  const animatedAvgRealR = useAnimatedNumber(metrics.avgRealR ?? 0, 900, hasTrades && metrics.avgRealR !== null && !isNaN(metrics.avgRealR));
 
   const isPositive = metrics.netProfit >= 0;
 
@@ -112,7 +113,7 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
           </div>
 
           {/* Right: Key Metric Cards Grid */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:w-96 shrink-0">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:w-[400px] shrink-0">
             {/* Win Rate */}
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
               <div className="flex items-center justify-between text-neutral-400 mb-1">
@@ -120,7 +121,7 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
                 <Target className="w-3.5 h-3.5 text-[#E0B341]" />
               </div>
               <div className="font-heading text-2xl font-bold text-white tabular-nums">
-                {!hasTrades ? '—' : `${animatedWinRate.toFixed(1)}%`}
+                {!hasTrades || isNaN(metrics.winRate) ? '—' : `${animatedWinRate.toFixed(1)}%`}
               </div>
               <div className="text-[11px] text-neutral-500 mt-1">
                 {metrics.winCount} de {metrics.totalTrades} ganados
@@ -134,10 +135,32 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
                 <Scale className="w-3.5 h-3.5 text-[#E0B341]" />
               </div>
               <div className="font-heading text-2xl font-bold text-[#E0B341] tabular-nums">
-                {!hasTrades ? '—' : (metrics.grossLoss === 0 ? '∞' : animatedProfitFactor.toFixed(2))}
+                {!hasTrades || isNaN(metrics.profitFactor) ? '—' : (metrics.grossLoss === 0 ? '∞' : animatedProfitFactor.toFixed(2))}
               </div>
               <div className="text-[11px] text-neutral-500 mt-1 truncate">
                 {!hasTrades ? '$0 / $0' : `$${metrics.grossProfit.toLocaleString()} / $${metrics.grossLoss.toLocaleString()}`}
+              </div>
+            </div>
+
+            {/* R Real Promedio */}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
+              <div className="flex items-center justify-between text-neutral-400 mb-1">
+                <span className="text-xs font-medium">R Real Promedio</span>
+                <TrendingUp className="w-3.5 h-3.5 text-[#34C97A]" />
+              </div>
+              <div className={`font-heading text-2xl font-bold tabular-nums ${
+                !hasTrades || metrics.avgRealR === null || isNaN(metrics.avgRealR)
+                  ? 'text-neutral-400'
+                  : metrics.avgRealR >= 0
+                    ? 'text-[#34C97A]'
+                    : 'text-[#FF6B60]'
+              }`}>
+                {!hasTrades || metrics.avgRealR === null || isNaN(metrics.avgRealR)
+                  ? '—'
+                  : `${metrics.avgRealR >= 0 ? '+' : ''}${animatedAvgRealR.toFixed(2)}R`}
+              </div>
+              <div className="text-[11px] text-neutral-500 mt-1 truncate">
+                (Salida - Entrada) / |SL|
               </div>
             </div>
 
@@ -147,25 +170,27 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
                 <span className="text-xs font-medium">R:R Planeado</span>
                 <Zap className="w-3.5 h-3.5 text-[#E0B341]" />
               </div>
-              <div className="font-heading text-2xl font-bold text-[#34C97A] tabular-nums">
-                {!hasTrades || metrics.avgPlannedRR === 0 ? '—' : `1:${animatedAvgRR.toFixed(2)}`}
+              <div className="font-heading text-2xl font-bold text-neutral-200 tabular-nums">
+                {!hasTrades || metrics.avgPlannedRR === 0 || isNaN(metrics.avgPlannedRR) ? '—' : `1:${animatedAvgRR.toFixed(2)}`}
               </div>
-              <div className="text-[11px] text-neutral-500 mt-1">
+              <div className="text-[11px] text-neutral-500 mt-1 truncate">
                 |TP-Entrada| / |Entrada-SL|
               </div>
             </div>
 
             {/* Total Trades */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors col-span-2">
               <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="text-xs font-medium">Total Trades</span>
+                <span className="text-xs font-medium">Total Operaciones</span>
                 <Shield className="w-3.5 h-3.5 text-neutral-400" />
               </div>
-              <div className="font-heading text-2xl font-bold text-white tabular-nums">
-                {metrics.totalTrades}
-              </div>
-              <div className="text-[11px] text-neutral-500 mt-1">
-                Operaciones registradas
+              <div className="flex items-baseline justify-between">
+                <div className="font-heading text-2xl font-bold text-white tabular-nums">
+                  {metrics.totalTrades ?? '—'}
+                </div>
+                <div className="text-[11px] text-neutral-400 font-mono">
+                  {metrics.winCount} Ganadas · {metrics.lossCount} Perdidas
+                </div>
               </div>
             </div>
           </div>
@@ -180,10 +205,12 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
           <div>
             <span className="text-xs text-neutral-400 font-medium block">Mejor Operación</span>
             <div className="font-heading text-xl font-bold text-[#34C97A] tabular-nums mt-0.5">
-              {metrics.bestTrade ? `+$${metrics.bestTrade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+              {metrics.bestTrade && metrics.bestTrade.money != null && !isNaN(metrics.bestTrade.money)
+                ? `+$${metrics.bestTrade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                : '—'}
             </div>
             <span className="text-[11px] text-neutral-500 truncate block max-w-[220px] mt-0.5">
-              {metrics.bestTrade ? `${metrics.bestTrade.setup} · ${metrics.bestTrade.fecha}` : 'Sin trades'}
+              {metrics.bestTrade ? `${metrics.bestTrade.setup || '—'} · ${metrics.bestTrade.fecha || '—'}` : 'Sin trades'}
             </span>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-[#34C97A]/15 border border-[#34C97A]/30 flex items-center justify-center text-[#34C97A]">
@@ -196,10 +223,12 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
           <div>
             <span className="text-xs text-neutral-400 font-medium block">Peor Operación</span>
             <div className="font-heading text-xl font-bold text-[#FF6B60] tabular-nums mt-0.5">
-              {metrics.worstTrade ? `${metrics.worstTrade.money < 0 ? '-' : ''}$${Math.abs(metrics.worstTrade.money).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+              {metrics.worstTrade && metrics.worstTrade.money != null && !isNaN(metrics.worstTrade.money)
+                ? `${metrics.worstTrade.money < 0 ? '-' : ''}$${Math.abs(metrics.worstTrade.money).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                : '—'}
             </div>
             <span className="text-[11px] text-neutral-500 truncate block max-w-[220px] mt-0.5">
-              {metrics.worstTrade ? `${metrics.worstTrade.setup} · ${metrics.worstTrade.fecha}` : 'Sin trades'}
+              {metrics.worstTrade ? `${metrics.worstTrade.setup || '—'} · ${metrics.worstTrade.fecha || '—'}` : 'Sin trades'}
             </span>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-[#FF6B60]/15 border border-[#FF6B60]/30 flex items-center justify-center text-[#FF6B60]">
