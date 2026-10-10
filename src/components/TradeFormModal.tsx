@@ -101,7 +101,27 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
     setSuccessMessage('');
   }, [isOpen, tradeToEdit]);
 
-  if (!isOpen) return null;
+  // Live evaluated outcome calculation (all hooks and calculations kept before conditional return)
+  const numEntrada = parseFloat(entrada);
+  const numSalida = salida.trim() !== '' ? parseFloat(salida) : null;
+  const numSl = parseFloat(sl);
+  const numTp = parseFloat(tp);
+  const numMoney = parseFloat(money);
+
+  const liveEvaluation = useMemo(() => {
+    if (!isOpen) return null;
+    if (isNaN(numEntrada) || isNaN(numSl) || isNaN(numTp)) {
+      return null;
+    }
+    return evaluateTradeOutcome({
+      direccion,
+      entrada: numEntrada,
+      salida: numSalida !== null && !isNaN(numSalida) ? numSalida : null,
+      sl: numSl,
+      tp: numTp,
+      money: !isNaN(numMoney) ? numMoney : null
+    });
+  }, [isOpen, direccion, numEntrada, numSalida, numSl, numTp, numMoney]);
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -124,27 +144,6 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       setIsProcessingImage(false);
     }
   };
-
-  // Live evaluated outcome calculation
-  const numEntrada = parseFloat(entrada);
-  const numSalida = salida.trim() !== '' ? parseFloat(salida) : null;
-  const numSl = parseFloat(sl);
-  const numTp = parseFloat(tp);
-  const numMoney = parseFloat(money);
-
-  const liveEvaluation = useMemo(() => {
-    if (isNaN(numEntrada) || isNaN(numSl) || isNaN(numTp)) {
-      return null;
-    }
-    return evaluateTradeOutcome({
-      direccion,
-      entrada: numEntrada,
-      salida: numSalida !== null && !isNaN(numSalida) ? numSalida : null,
-      sl: numSl,
-      tp: numTp,
-      money: !isNaN(numMoney) ? numMoney : null
-    });
-  }, [direccion, numEntrada, numSalida, numSl, numTp, numMoney]);
 
   // Quick Action: Match Exit to TP
   const handleSetExitToTP = () => {
@@ -283,6 +282,8 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
