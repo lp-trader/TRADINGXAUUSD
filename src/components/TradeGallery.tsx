@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Trade } from '../types/trade';
-import { ArrowUpRight, ArrowDownRight, Search, Sparkles, Filter, Image as ImageIcon } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Search, Sparkles, Filter, Image as ImageIcon, Edit3 } from 'lucide-react';
 
 interface TradeGalleryProps {
   trades: Trade[];
   onSelectTrade: (trade: Trade) => void;
   onOpenNewTrade?: () => void;
+  onEditTrade?: (trade: Trade) => void;
   isOwner: boolean;
 }
 
@@ -13,6 +14,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
   trades,
   onSelectTrade,
   onOpenNewTrade,
+  onEditTrade,
   isOwner
 }) => {
   const [filterResult, setFilterResult] = useState<'ALL' | 'WIN' | 'LOSS'>('ALL');
@@ -242,6 +244,22 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                     </div>
                   </div>
 
+                  {/* Outcome tags */}
+                  {(trade.isSLHit || trade.isTPHit) && (
+                    <div className="flex items-center gap-2">
+                      {trade.isSLHit && (
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FF6B60]/20 text-[#FF6B60] border border-[#FF6B60]/30">
+                          🛑 Salió en SL
+                        </span>
+                      )}
+                      {trade.isTPHit && (
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#34C97A]/20 text-[#34C97A] border border-[#34C97A]/30">
+                          🎯 Salió en TP
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {trade.leccion && (
                     <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
                       "{trade.leccion}"
@@ -252,9 +270,27 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                     <span className="text-[11px] font-medium text-neutral-400">
                       Emoción: <strong className="text-neutral-200">{trade.emotion || '—'}</strong>
                     </span>
-                    <span className="text-[11px] font-medium text-[#E0B341] group-hover:underline">
-                      Ver detalle →
-                    </span>
+
+                    <div className="flex items-center gap-2.5">
+                      {isOwner && onEditTrade && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditTrade(trade);
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-[#E0B341]/10 hover:bg-[#E0B341]/25 text-[#E0B341] border border-[#E0B341]/30 text-[11px] font-medium flex items-center gap-1 transition-colors"
+                          title="Editar trade"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>Editar</span>
+                        </button>
+                      )}
+
+                      <span className="text-[11px] font-medium text-[#E0B341] group-hover:underline">
+                        Ver detalle →
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -42,6 +42,7 @@ export default function App() {
 
   // Modals
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [tradeToEdit, setTradeToEdit] = useState<Trade | null>(null);
   const [isNewTradeOpen, setIsNewTradeOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -68,6 +69,13 @@ export default function App() {
     try {
       const data = await fetchTradesFromAppsScript();
       setTrades(data);
+
+      // Keep selectedTrade in sync if currently viewed
+      setSelectedTrade((current) => {
+        if (!current) return null;
+        const found = data.find((t) => t.id === current.id);
+        return found || current;
+      });
     } catch (err: any) {
       console.error('Error fetching trades from Apps Script:', err);
       setFetchError(err.message || 'No se pudieron cargar los datos de Google Apps Script.');
@@ -89,7 +97,7 @@ export default function App() {
 
   const handleOwnerSuccess = (key: string) => {
     setOwnerKey(key);
-    showToast('¡Modo Dueño activado! Ya puedes registrar nuevas operaciones.');
+    showToast('¡Modo Dueño activado! Ya puedes registrar y editar operaciones.');
   };
 
   const handleLogoutOwner = () => {
@@ -98,8 +106,24 @@ export default function App() {
     showToast('Modo Dueño cerrado. Modo solo lectura activado.');
   };
 
-  const handleTradeAddedSuccess = () => {
-    showToast('¡Trade agregado exitosamente! Actualizando datos...');
+  const handleOpenNewTrade = () => {
+    setTradeToEdit(null);
+    setIsNewTradeOpen(true);
+  };
+
+  const handleOpenEditTrade = (trade: Trade) => {
+    setTradeToEdit(trade);
+    setIsNewTradeOpen(true);
+  };
+
+  const handleCloseTradeForm = () => {
+    setIsNewTradeOpen(false);
+    setTradeToEdit(null);
+  };
+
+  const handleTradeSavedSuccess = () => {
+    showToast(tradeToEdit ? '¡Trade actualizado exitosamente!' : '¡Trade registrado exitosamente!');
+    handleCloseTradeForm();
     loadTrades();
   };
 
@@ -121,7 +145,7 @@ export default function App() {
         isOwner={isOwner}
         onOpenAuthModal={() => setIsAuthOpen(true)}
         onLogoutOwner={handleLogoutOwner}
-        onOpenNewTrade={() => setIsNewTradeOpen(true)}
+        onOpenNewTrade={handleOpenNewTrade}
         onRefreshTrades={loadTrades}
         isLoading={isLoading}
       />
@@ -179,6 +203,8 @@ export default function App() {
             <TradingCalendar
               trades={trades}
               onSelectTrade={setSelectedTrade}
+              onEditTrade={handleOpenEditTrade}
+              isOwner={isOwner}
             />
 
             {/* 2. Equity Curve */}
@@ -195,7 +221,8 @@ export default function App() {
             <TradeGallery
               trades={trades}
               onSelectTrade={setSelectedTrade}
-              onOpenNewTrade={() => setIsNewTradeOpen(true)}
+              onOpenNewTrade={handleOpenNewTrade}
+              onEditTrade={handleOpenEditTrade}
               isOwner={isOwner}
             />
 
@@ -208,14 +235,17 @@ export default function App() {
       <TradeDetailModal
         trade={selectedTrade}
         onClose={() => setSelectedTrade(null)}
+        onEditTrade={handleOpenEditTrade}
+        isOwner={isOwner}
       />
 
-      {/* New Trade Form Modal (Owner Mode) */}
+      {/* New / Edit Trade Form Modal (Owner Mode) */}
       <TradeFormModal
         isOpen={isNewTradeOpen}
-        onClose={() => setIsNewTradeOpen(false)}
+        onClose={handleCloseTradeForm}
         ownerKey={ownerKey}
-        onSuccess={handleTradeAddedSuccess}
+        tradeToEdit={tradeToEdit}
+        onSuccess={handleTradeSavedSuccess}
       />
 
       {/* Owner Auth Modal */}
@@ -229,13 +259,23 @@ export default function App() {
       {/* Footer (Mandatory Disclaimer) */}
       <footer className="border-t border-white/[0.06] bg-[#0B0D12] py-8 text-neutral-500 text-xs mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <div className="space-y-1">
-            <p className="text-neutral-400">
-              Diario personal con fines informativos. Resultados pasados no garantizan resultados futuros.
-            </p>
-            <p className="text-[11px] text-neutral-600 font-mono">
-              Trading Journal · XAU/USD Prop Firm Portfolio · Powered by Google Apps Script & Drive
-            </p>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.jpg"
+              alt="Logo"
+              className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/10 shrink-0 hidden sm:block"
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+            <div className="space-y-1">
+              <p className="text-neutral-400">
+                Diario personal con fines informativos. Resultados pasados no garantizan resultados futuros.
+              </p>
+              <p className="text-[11px] text-neutral-600 font-mono">
+                Trading Journal · XAU/USD Prop Firm Portfolio · Powered by Google Apps Script & Drive
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 text-[11px]">

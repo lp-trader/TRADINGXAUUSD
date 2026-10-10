@@ -45,8 +45,16 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
           <X className="w-4 h-4" />
         </button>
 
-        <div className="w-12 h-12 rounded-2xl bg-[#E0B341]/10 border border-[#E0B341]/30 mx-auto flex items-center justify-center text-[#E0B341] mb-3">
-          <KeyRound className="w-6 h-6" />
+        <div className="relative w-14 h-14 rounded-2xl overflow-hidden ring-1 ring-[#E0B341]/40 shadow-lg shadow-[#E0B341]/20 mx-auto mb-3 bg-[#12151D] flex items-center justify-center">
+          <img
+            src="/logo.jpg"
+            alt="Logo"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none';
+            }}
+          />
+          <KeyRound className="w-6 h-6 text-[#E0B341] absolute -z-10" />
         </div>
 
         <h3 className="font-heading text-lg font-bold text-white text-center">

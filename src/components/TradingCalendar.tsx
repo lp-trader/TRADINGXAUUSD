@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Trade } from '../types/trade';
+import { normalizeDateToYYYYMMDD } from '../utils/tradeCalculation';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -10,12 +11,16 @@ import {
   TrendingUp, 
   TrendingDown, 
   Maximize2, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  Edit3,
+  Sparkles
 } from 'lucide-react';
 
 interface TradingCalendarProps {
   trades: Trade[];
   onSelectTrade: (trade: Trade) => void;
+  onEditTrade?: (trade: Trade) => void;
+  isOwner?: boolean;
 }
 
 const MONTH_NAMES = [
@@ -52,16 +57,15 @@ interface CalendarWeek {
 }
 
 function normalizeDateStr(rawDate: string): string {
-  if (!rawDate) return '';
-  const dateOnly = String(rawDate).trim().split('T')[0].split(' ')[0];
-  const parts = dateOnly.split(/[-/]/);
-  if (parts.length === 3) {
-    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-  }
-  return dateOnly;
+  return normalizeDateToYYYYMMDD(rawDate);
 }
 
-export const TradingCalendar: React.FC<TradingCalendarProps> = ({ trades, onSelectTrade }) => {
+export const TradingCalendar: React.FC<TradingCalendarProps> = ({ 
+  trades, 
+  onSelectTrade, 
+  onEditTrade, 
+  isOwner = false 
+}) => {
   // Today's date reference
   const today = useMemo(() => new Date(), []);
   const todayYear = today.getFullYear();
@@ -69,30 +73,46 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({ trades, onSele
   const todayDay = today.getDate();
   const todayDateStr = `${todayYear}-${String(todayMonth).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
 
-  // Initial month/year: most recent trade if available, else today
-  const initialYearMonth = useMemo(() => {
-    if (trades && trades.length > 0) {
-      const validDates = trades
-        .map((t) => normalizeDateStr(t.fecha))
-        .filter(Boolean)
-        .sort((a, b) => b.localeCompare(a));
-
-      if (validDates.length > 0) {
-        const parts = validDates[0].split('-');
-        if (parts.length >= 2) {
-          const y = parseInt(parts[0], 10);
-          const m = parseInt(parts[1], 10);
-          if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
-            return { year: y, month: m };
-          }
+  // Find latest trade year and month
+  const latestTradeInfo = useMemo(() => {
+    if (!trades || trades.length === 0) return null;
+    const sorted = [...trades].sort((a, b) => {
+      const da = normalizeDateToYYYYMMDD(a.fecha);
+      const db = normalizeDateToYYYYMMDD(b.fecha);
+      return db.localeCompare(da);
+    });
+    const latestStr = sorted[0]?.fecha ? normalizeDateToYYYYMMDD(sorted[0].fecha) : null;
+    if (latestStr) {
+      const parts = latestStr.split('-');
+      if (parts.length >= 2) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+          return { year: y, month: m, dateStr: latestStr, trade: sorted[0] };
         }
       }
     }
+    return null;
+  }, [trades]);
+
+  // Initial month/year: most recent trade if available, else today
+  const initialYearMonth = useMemo(() => {
+    if (latestTradeInfo) {
+      return { year: latestTradeInfo.year, month: latestTradeInfo.month };
+    }
     return { year: todayYear, month: todayMonth };
-  }, [trades, todayYear, todayMonth]);
+  }, [latestTradeInfo, todayYear, todayMonth]);
 
   const [viewYear, setViewYear] = useState<number>(initialYearMonth.year);
   const [viewMonth, setViewMonth] = useState<number>(initialYearMonth.month);
+
+  // Auto-sync calendar view to the most recent trade when trades change
+  useEffect(() => {
+    if (latestTradeInfo) {
+      setViewYear(latestTradeInfo.year);
+      setViewMonth(latestTradeInfo.month);
+    }
+  }, [latestTradeInfo]);
 
   // Modal for day's trades details
   const [activeDayModal, setActiveDayModal] = useState<{
@@ -109,7 +129,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({ trades, onSele
 
     trades.forEach((trade) => {
       if (!trade.fecha) return;
-      const key = normalizeDateStr(trade.fecha);
+      const key = normalizeDateToYYYYMMDD(trade.fecha);
       const money = Number(trade.money) || 0;
 
       const current = map.get(key) || { trades: [], netMoney: 0 };
@@ -309,7 +329,21 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({ trades, onSele
         </div>
 
         {/* Month Selector & "Hoy" Button */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {latestTradeInfo && (viewYear !== latestTradeInfo.year || viewMonth !== latestTradeInfo.month) && (
+            <button
+              onClick={() => {
+                setViewYear(latestTradeInfo.year);
+                setViewMonth(latestTradeInfo.month);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#E0B341]/15 hover:bg-[#E0B341]/25 text-[#E0B341] border border-[#E0B341]/30 transition-all"
+              title={`Ir al mes con operaciones (${MONTH_NAMES[latestTradeInfo.month - 1]} ${latestTradeInfo.year})`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#E0B341]" />
+              <span>Ver {MONTH_NAMES[latestTradeInfo.month - 1].slice(0, 3)} {latestTradeInfo.year}</span>
+            </button>
+          )}
+
           <button
             onClick={handleGoToToday}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-200 hover:text-white border border-white/[0.08] transition-all"
@@ -682,21 +716,60 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({ trades, onSele
                           <span>·</span>
                           <span>Setup: {trade.setup || '—'}</span>
                         </div>
+
+                        {/* SL / TP Outcome Status */}
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          {trade.isSLHit && (
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FF6B60]/20 text-[#FF6B60] border border-[#FF6B60]/30">
+                              🛑 Salió en SL (Perdedor)
+                            </span>
+                          )}
+                          {trade.isTPHit && (
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#34C97A]/20 text-[#34C97A] border border-[#34C97A]/30">
+                              🎯 Salió en TP (Ganador)
+                            </span>
+                          )}
+                          {trade.rReal !== null && !isNaN(trade.rReal) && (
+                            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                              trade.rReal >= 0 ? 'bg-[#34C97A]/15 text-[#34C97A]' : 'bg-[#FF6B60]/15 text-[#FF6B60]'
+                            }`}>
+                              {trade.rReal >= 0 ? '+' : ''}{trade.rReal.toFixed(2)}R
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Result & Detail Trigger */}
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-white/[0.05]">
+                    {/* Result & Actions Trigger */}
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-white/[0.05] gap-2">
                       <span className={`font-heading text-base font-bold tabular-nums ${
                         isWin ? 'text-[#34C97A]' : 'text-[#FF6B60]'
                       }`}>
                         {trade.money != null && !isNaN(trade.money) ? `${isWin ? '+' : ''}$${trade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
                       </span>
 
-                      <span className="text-[11px] font-medium text-[#E0B341] group-hover:underline flex items-center gap-1 mt-0.5">
-                        <Maximize2 className="w-3 h-3" />
-                        <span>Ver detalle</span>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isOwner && onEditTrade && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDayModal(null);
+                              onEditTrade(trade);
+                            }}
+                            className="px-2 py-1 rounded-lg bg-[#E0B341]/10 hover:bg-[#E0B341]/25 text-[#E0B341] border border-[#E0B341]/30 text-[11px] font-medium flex items-center gap-1 transition-colors"
+                            title="Editar trade"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>Editar</span>
+                          </button>
+                        )}
+
+                        <span className="text-[11px] font-medium text-[#E0B341] group-hover:underline flex items-center gap-1">
+                          <Maximize2 className="w-3 h-3" />
+                          <span>Detalle</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );

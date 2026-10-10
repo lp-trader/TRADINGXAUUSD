@@ -33,11 +33,17 @@ export interface Trade {
   imageUrl: string; // full drive thumbnail URL or fallback
   rrPlanificado: number; // |TP - ENTRADA| / |ENTRADA - SL|
   rReal: number | null; // (SALIDA - ENTRADA) * (1 si Buy, -1 si Sell) / |ENTRADA - SL|
+  outcome?: 'WIN' | 'LOSS' | 'BREAKEVEN' | 'OPEN';
+  isSLHit?: boolean;
+  isTPHit?: boolean;
 }
 
 export interface TradePayload {
   key: string;
+  action?: 'create' | 'update';
+  id?: string;
   trade: {
+    ID?: string;
     FECHA: string;
     ACTIVO: string;
     DIRECCION: 'Buy' | 'Sell';
@@ -50,6 +56,7 @@ export interface TradePayload {
     SESION: string;
     EMOTION: string;
     LECCION: string;
+    IMAGEN?: string;
   };
   imagen?: {
     data: string; // Base64 without 'data:image/...;base64,' prefix

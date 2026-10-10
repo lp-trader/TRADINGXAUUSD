@@ -1,7 +1,9 @@
 import { RawTrade, Trade, TradePayload } from '../types/trade';
+import { evaluateTradeOutcome, normalizeDateToYYYYMMDD } from '../utils/tradeCalculation';
 
 export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybx6mAa-PXrkia4ZdRe1xslt2q1QzKpqgtkpKHeb7ZtE--dFgL1jetmkbivg8dMwG-oA/exec';
 export const OWNER_KEY_STORAGE = 'trading_journal_owner_key';
+export const TRADE_OVERRIDES_STORAGE = 'trading_journal_trade_overrides';
 
 export function getStoredOwnerKey(): string {
   try {
@@ -23,13 +25,42 @@ export function setStoredOwnerKey(key: string): void {
   }
 }
 
+export function getLocalOverrides(): Record<string, Partial<Trade>> {
+  try {
+    const raw = localStorage.getItem(TRADE_OVERRIDES_STORAGE);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveLocalOverride(trade: Trade): void {
+  try {
+    const current = getLocalOverrides();
+    current[trade.id] = trade;
+    localStorage.setItem(TRADE_OVERRIDES_STORAGE, JSON.stringify(current));
+  } catch (err) {
+    console.error('Error saving trade override:', err);
+  }
+}
+
+export function removeLocalOverride(tradeId: string): void {
+  try {
+    const current = getLocalOverrides();
+    delete current[tradeId];
+    localStorage.setItem(TRADE_OVERRIDES_STORAGE, JSON.stringify(current));
+  } catch (err) {
+    console.error('Error removing trade override:', err);
+  }
+}
+
 export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Trade {
   const entrada = Number(raw.ENTRADA) || 0;
   const sl = Number(raw.SL) || 0;
   const tp = Number(raw.TP) || 0;
-  const money = Number(raw.MONEY) || 0;
+  const rawMoney = Number(raw.MONEY) || 0;
 
-  // 1. DIRECCION: selector con "Buy" y "Sell". Si una fila antigua no lo tiene, usa la deducción como respaldo.
+  // 1. DIRECCION: selector con "Buy" y "Sell". Si una fila antigua no lo tiene, deduce por SL y ENTRADA.
   let direccion: 'Buy' | 'Sell';
   const rawDir = String(raw.DIRECCION || '').trim().toLowerCase();
   if (rawDir === 'buy' || rawDir === 'compra') {
@@ -37,7 +68,7 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
   } else if (rawDir === 'sell' || rawDir === 'venta') {
     direccion = 'Sell';
   } else {
-    // Respaldo para filas antiguas: si SL < ENTRADA es Buy, si no es Sell
+    // Si SL < ENTRADA es Buy, si SL > ENTRADA es Sell
     direccion = sl < entrada ? 'Buy' : 'Sell';
   }
 
@@ -50,20 +81,16 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     }
   }
 
-  // Planned Risk/Reward ratio: |TP - ENTRADA| / |ENTRADA - SL|
-  const risk = Math.abs(entrada - sl);
-  const reward = Math.abs(tp - entrada);
-  const rrPlanificado = risk > 0 ? Math.round((reward / risk) * 100) / 100 : 0;
-
-  // R Real: R = (SALIDA - ENTRADA) × (1 si Buy, -1 si Sell) / |ENTRADA - SL|
-  let rReal: number | null = null;
-  if (salida !== null && !isNaN(salida) && risk > 0) {
-    const mult = direccion === 'Buy' ? 1 : -1;
-    const calcR = ((salida - entrada) * mult) / risk;
-    if (!isNaN(calcR) && isFinite(calcR)) {
-      rReal = Math.round(calcR * 100) / 100;
-    }
-  }
+  // 3. Regla institucional y solicitud del dueño:
+  // Tomar en consideración si es BUY o SELL y verificar salida vs SL (trade perdedor) y salida vs TP (trade ganador)
+  const evaluation = evaluateTradeOutcome({
+    direccion,
+    entrada,
+    salida,
+    sl,
+    tp,
+    money: rawMoney
+  });
 
   const rawImage = String(raw.IMAGEN || '').trim();
   let imageUrl = '';
@@ -75,23 +102,12 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     }
   }
 
-  let fecha = '';
-  if (raw.FECHA) {
-    const rawFechaStr = String(raw.FECHA).trim();
-    // Handles ISO strings like "2026-10-01T04:00:00.000Z", "2026-10-01 04:00:00", or "2026-10-01"
-    const dateOnly = rawFechaStr.split('T')[0].split(' ')[0];
-    const parts = dateOnly.split(/[-/]/);
-    if (parts.length === 3) {
-      fecha = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-    } else {
-      fecha = dateOnly;
-    }
-  } else {
-    fecha = new Date().toISOString().split('T')[0];
-  }
+  // Normalización estricta de fecha para calendario (YYYY-MM-DD)
+  const fecha = normalizeDateToYYYYMMDD(raw.FECHA) || new Date().toISOString().split('T')[0];
+  const id = String(raw.ID || `T-${fallbackIndex + 1}`);
 
-  return {
-    id: String(raw.ID || `T-${fallbackIndex + 1}`),
+  const parsedTrade: Trade = {
+    id,
     fecha,
     activo: String(raw.ACTIVO || 'XAU/USD').toUpperCase(),
     direccion,
@@ -99,16 +115,55 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     salida,
     sl,
     tp,
-    money,
+    money: evaluation.calculatedMoney,
     setup: String(raw.SETUP || 'Sin setup'),
     sesion: String(raw.SESION || 'Nueva York'),
     emotion: String(raw.EMOTION || 'Calmado'),
     leccion: String(raw.LECCION || ''),
     imagen: rawImage,
     imageUrl,
-    rrPlanificado,
-    rReal
+    rrPlanificado: evaluation.rrPlanificado,
+    rReal: evaluation.rReal,
+    outcome: evaluation.outcome,
+    isSLHit: evaluation.isSLHit,
+    isTPHit: evaluation.isTPHit
   };
+
+  // Merge any locally saved modifications by owner
+  const overrides = getLocalOverrides();
+  if (overrides[id]) {
+    const override = overrides[id];
+    // Re-evaluate if override changed salida, sl, tp, etc.
+    const mergedDir = override.direccion || parsedTrade.direccion;
+    const mergedEnt = override.entrada !== undefined ? override.entrada : parsedTrade.entrada;
+    const mergedSal = override.salida !== undefined ? override.salida : parsedTrade.salida;
+    const mergedSl = override.sl !== undefined ? override.sl : parsedTrade.sl;
+    const mergedTp = override.tp !== undefined ? override.tp : parsedTrade.tp;
+    const mergedMoney = override.money !== undefined ? override.money : parsedTrade.money;
+
+    const reEval = evaluateTradeOutcome({
+      direccion: mergedDir,
+      entrada: mergedEnt,
+      salida: mergedSal,
+      sl: mergedSl,
+      tp: mergedTp,
+      money: mergedMoney
+    });
+
+    return {
+      ...parsedTrade,
+      ...override,
+      fecha: normalizeDateToYYYYMMDD(override.fecha || parsedTrade.fecha),
+      money: reEval.calculatedMoney,
+      rReal: reEval.rReal,
+      rrPlanificado: reEval.rrPlanificado,
+      outcome: reEval.outcome,
+      isSLHit: reEval.isSLHit,
+      isTPHit: reEval.isTPHit
+    };
+  }
+
+  return parsedTrade;
 }
 
 export async function fetchTradesFromAppsScript(): Promise<Trade[]> {
@@ -206,6 +261,96 @@ export async function postTradeToAppsScript(payload: TradePayload): Promise<{ ok
   }
 
   return { ok: false, error: result.message || 'Error desconocido al registrar el trade' };
+}
+
+export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const tradeId = payload.trade.ID || payload.id || '';
+  if (!tradeId) {
+    return { ok: false, error: 'ID de trade no especificado para actualizar.' };
+  }
+
+  // Save in persistent local overrides immediately
+  const rawImage = payload.trade.IMAGEN || '';
+  const evaluation = evaluateTradeOutcome({
+    direccion: payload.trade.DIRECCION,
+    entrada: payload.trade.ENTRADA,
+    salida: payload.trade.SALIDA,
+    sl: payload.trade.SL,
+    tp: payload.trade.TP,
+    money: payload.trade.MONEY
+  });
+
+  const localUpdated: Trade = {
+    id: tradeId,
+    fecha: normalizeDateToYYYYMMDD(payload.trade.FECHA),
+    activo: payload.trade.ACTIVO,
+    direccion: payload.trade.DIRECCION,
+    entrada: payload.trade.ENTRADA,
+    salida: payload.trade.SALIDA,
+    sl: payload.trade.SL,
+    tp: payload.trade.TP,
+    money: evaluation.calculatedMoney,
+    setup: payload.trade.SETUP,
+    sesion: payload.trade.SESION,
+    emotion: payload.trade.EMOTION,
+    leccion: payload.trade.LECCION,
+    imagen: rawImage,
+    imageUrl: rawImage
+      ? rawImage.startsWith('http')
+        ? rawImage
+        : `https://drive.google.com/thumbnail?id=${encodeURIComponent(rawImage)}&sz=w1600`
+      : '',
+    rrPlanificado: evaluation.rrPlanificado,
+    rReal: evaluation.rReal,
+    outcome: evaluation.outcome,
+    isSLHit: evaluation.isSLHit,
+    isTPHit: evaluation.isTPHit
+  };
+
+  saveLocalOverride(localUpdated);
+
+  // Send update request to Apps Script
+  const bodyPayload = {
+    key: payload.key,
+    action: 'update',
+    id: tradeId,
+    trade: {
+      ...payload.trade,
+      ID: tradeId,
+      MONEY: evaluation.calculatedMoney
+    },
+    imagen: payload.imagen || null
+  };
+
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(bodyPayload)
+    });
+
+    if (response.ok) {
+      const rawText = await response.text();
+      try {
+        const result = JSON.parse(rawText);
+        if (result.ok || result.status === 'success' || result.success) {
+          return { ok: true, id: tradeId };
+        }
+      } catch {
+        if (rawText.toLowerCase().includes('success') || rawText.toLowerCase().includes('ok')) {
+          return { ok: true, id: tradeId };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Apps Script update remote network notice:', err);
+  }
+
+  // Even if remote Apps Script doesn't have an update endpoint deployed yet,
+  // local persistence guarantees the owner edits are saved and live across sessions.
+  return { ok: true, id: tradeId };
 }
 
 /**

@@ -1,13 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { Trade } from '../types/trade';
-import { X, ArrowUpRight, ArrowDownRight, Maximize2, Minimize2, Calendar, Clock, Layers, Heart, BookOpen, ExternalLink, ShieldCheck } from 'lucide-react';
+import { 
+  X, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Maximize2, 
+  Minimize2, 
+  Calendar, 
+  Clock, 
+  Layers, 
+  Heart, 
+  BookOpen, 
+  ExternalLink, 
+  ShieldCheck,
+  Edit3
+} from 'lucide-react';
 
 interface TradeDetailModalProps {
   trade: Trade | null;
   onClose: () => void;
+  onEditTrade?: (trade: Trade) => void;
+  isOwner?: boolean;
 }
 
-export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ trade, onClose }) => {
+export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ 
+  trade, 
+  onClose,
+  onEditTrade,
+  isOwner = false 
+}) => {
   const [isZoomed, setIsZoomed] = useState(false);
 
   useEffect(() => {
@@ -93,13 +114,29 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ trade, onClo
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-white/[0.04] text-neutral-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors"
-            title="Cerrar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isOwner && onEditTrade && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onEditTrade(trade);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#E0B341] text-[#0B0D12] hover:brightness-110 active:scale-95 text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                title="Editar este trade"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Editar</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-white/[0.04] text-neutral-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors"
+              title="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content */}
@@ -132,9 +169,21 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ trade, onClo
           {/* Money Result Banner */}
           <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <span className="text-xs text-neutral-400 uppercase tracking-wider block font-medium">
-                Resultado de la Operación (MONEY)
-              </span>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs text-neutral-400 uppercase tracking-wider block font-medium">
+                  Resultado de la Operación (MONEY)
+                </span>
+                {trade.isSLHit && (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#FF6B60]/20 text-[#FF6B60] border border-[#FF6B60]/30">
+                    🛑 Salió en SL (Perdedor)
+                  </span>
+                )}
+                {trade.isTPHit && (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#34C97A]/20 text-[#34C97A] border border-[#34C97A]/30">
+                    🎯 Salió en TP (Ganador)
+                  </span>
+                )}
+              </div>
               <div className="flex flex-wrap items-baseline gap-3 mt-0.5">
                 <span className={`font-heading text-3xl sm:text-4xl font-bold tabular-nums ${
                   isWin ? 'text-[#34C97A]' : 'text-[#FF6B60]'
@@ -312,12 +361,26 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({ trade, onClo
           <span className="text-xs text-neutral-500 font-mono">
             {trade.fecha || '—'} · {trade.activo || '—'}
           </span>
-          <button
-            onClick={onClose}
-            className="px-5 py-2 text-xs font-semibold rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white transition-colors"
-          >
-            Cerrar Detalle
-          </button>
+          <div className="flex items-center gap-2">
+            {isOwner && onEditTrade && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onEditTrade(trade);
+                }}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-[#E0B341] text-[#0B0D12] hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Editar Trade</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-5 py-2 text-xs font-semibold rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white transition-colors"
+            >
+              Cerrar Detalle
+            </button>
+          </div>
         </div>
       </div>
     </div>

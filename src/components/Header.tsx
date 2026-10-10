@@ -24,19 +24,29 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between h-16 sm:h-20">
           
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#E0B341] to-[#99741B] flex items-center justify-center shadow-lg shadow-[#E0B341]/15">
-              <span className="font-heading font-bold text-xs text-[#0B0D12] tracking-wider">AU</span>
+          <a href="#" className="group flex items-center gap-3 transition-opacity hover:opacity-95">
+            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden ring-1 ring-[#E0B341]/40 shadow-lg shadow-[#E0B341]/15 bg-[#12151D] flex items-center justify-center shrink-0">
+              <img
+                src="/logo.jpg"
+                alt="Trading Journal Logo"
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
+              />
+              <span className="font-heading font-bold text-xs text-[#E0B341] tracking-wider -z-10 absolute">
+                AU
+              </span>
             </div>
-            <div>
-              <a href="#" className="font-heading font-bold text-lg sm:text-xl text-white tracking-tight flex items-center gap-2 hover:text-[#E0B341] transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+              <span className="font-heading font-bold text-base sm:text-xl text-white tracking-tight group-hover:text-[#E0B341] transition-colors">
                 Trading Journal
-                <span className="text-[#E0B341] text-xs font-mono font-medium px-2 py-0.5 rounded bg-[#E0B341]/10 border border-[#E0B341]/20">
-                  XAU/USD
-                </span>
-              </a>
+              </span>
+              <span className="w-fit text-[#E0B341] text-[10px] sm:text-xs font-mono font-semibold px-2 py-0.5 rounded bg-[#E0B341]/10 border border-[#E0B341]/25">
+                XAU/USD
+              </span>
             </div>
-          </div>
+          </a>
 
           {/* Actions & Owner Mode */}
           <div className="flex items-center gap-2 sm:gap-3">
