@@ -198,6 +198,75 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
   return parsedTrade;
 }
 
+export function deduplicateRawTrades(rawList: RawTrade[]): RawTrade[] {
+  if (!rawList || rawList.length <= 1) return rawList || [];
+
+  const deletedIds = getDeletedTradeIds();
+  // Filter out any known deleted IDs first
+  const activeList = rawList.filter((item) => {
+    const id = item.ID ? String(item.ID).trim() : '';
+    return !id || !deletedIds.includes(id);
+  });
+
+  const groups = new Map<string, { item: RawTrade; index: number }[]>();
+
+  activeList.forEach((item, index) => {
+    const activo = String(item.ACTIVO || '').trim().toUpperCase();
+    const entrada = Number(item.ENTRADA || 0).toFixed(2);
+    const sl = Number(item.SL || 0).toFixed(2);
+    const tp = Number(item.TP || 0).toFixed(2);
+    const setup = String(item.SETUP || '').trim().toLowerCase();
+    const lessonSnippet = String(item.LECCION || '').slice(0, 30).trim().toLowerCase();
+
+    // Unique execution signature of a trade
+    const signature = `${activo}___${entrada}___${sl}___${tp}___${setup || lessonSnippet}`;
+
+    if (!groups.has(signature)) {
+      groups.set(signature, []);
+    }
+    groups.get(signature)!.push({ item, index });
+  });
+
+  const deduplicated: RawTrade[] = [];
+  const obsoleteIds: string[] = [];
+
+  groups.forEach((group) => {
+    if (group.length === 1) {
+      deduplicated.push(group[0].item);
+    } else {
+      // Multiple records exist for the exact same trade operation (created by editing):
+      // 1. Preserve the chart image from whichever record had it uploaded
+      const itemWithImage = group.find((g) => g.item.IMAGEN && String(g.item.IMAGEN).trim() !== '');
+      const bestImage = itemWithImage ? String(itemWithImage.item.IMAGEN).trim() : '';
+
+      // 2. The latest record (last in sheet) represents the most recent edit state
+      const latest = group[group.length - 1].item;
+
+      const merged: RawTrade = {
+        ...latest,
+        IMAGEN: latest.IMAGEN && String(latest.IMAGEN).trim() !== '' ? latest.IMAGEN : bestImage
+      };
+
+      deduplicated.push(merged);
+
+      // 3. Mark all previous obsolete rows as superseded
+      for (let i = 0; i < group.length - 1; i++) {
+        const obsId = group[i].item.ID ? String(group[i].item.ID).trim() : '';
+        if (obsId) {
+          obsoleteIds.push(obsId);
+        }
+      }
+    }
+  });
+
+  // Permanently record newly detected obsolete IDs so they don't reappear
+  if (obsoleteIds.length > 0) {
+    obsoleteIds.forEach((id) => saveDeletedTradeId(id));
+  }
+
+  return deduplicated;
+}
+
 export async function fetchTradesFromAppsScript(): Promise<Trade[]> {
   let response: Response;
   try {
@@ -230,28 +299,26 @@ export async function fetchTradesFromAppsScript(): Promise<Trade[]> {
     throw new Error(`Respuesta no es JSON válido: ${text.slice(0, 300)}`);
   }
 
-  const deletedIds = getDeletedTradeIds();
-
-  // Si la respuesta es un arreglo vacío, NO es un error: es un diario sin trades.
+  let rawList: RawTrade[] = [];
   if (Array.isArray(data)) {
-    return data
-      .map((item, idx) => parseTradeFromRaw(item, idx))
-      .filter((trade) => !deletedIds.includes(trade.id));
+    rawList = data;
   } else if (data && typeof data === 'object') {
     if (Array.isArray(data.trades)) {
-      return data.trades
-        .map((item: any, idx: number) => parseTradeFromRaw(item, idx))
-        .filter((trade: Trade) => !deletedIds.includes(trade.id));
-    }
-    if (data.error) {
+      rawList = data.trades;
+    } else if (data.error) {
       throw new Error(`Respuesta de Apps Script: ${data.error}`);
-    }
-    if (data.status === 'error' || data.message) {
+    } else if (data.status === 'error' || data.message) {
       throw new Error(`Respuesta de Apps Script: ${data.message || data.status}`);
     }
   }
 
-  return [];
+  // Deduplicate trades and automatically merge superseded edit records
+  const cleanRaw = deduplicateRawTrades(rawList);
+  const deletedIds = getDeletedTradeIds();
+
+  return cleanRaw
+    .map((item, idx) => parseTradeFromRaw(item, idx))
+    .filter((trade) => !deletedIds.includes(trade.id));
 }
 
 export async function postTradeToAppsScript(payload: TradePayload): Promise<{ ok: boolean; id?: string; error?: string }> {
@@ -371,16 +438,40 @@ export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ 
 
     if (response.ok) {
       const rawText = await response.text();
+      let assignedId = tradeId;
+
       try {
         const result = JSON.parse(rawText);
         if (result.ok || result.status === 'success' || result.success) {
-          return { ok: true, id: tradeId };
+          if (result.id && typeof result.id === 'string' && result.id.trim()) {
+            assignedId = result.id.trim();
+          }
         }
       } catch {
         if (rawText.toLowerCase().includes('success') || rawText.toLowerCase().includes('ok')) {
-          return { ok: true, id: tradeId };
+          assignedId = tradeId;
         }
       }
+
+      // CRITICAL DUPLICATION FIX:
+      // If the backend Apps Script assigned a new ID (i.e. appended a new row instead of in-place update):
+      if (assignedId && assignedId !== tradeId) {
+        // 1. Mark the old trade ID as superseded/deleted so it will never show up as a duplicate
+        saveDeletedTradeId(tradeId);
+        removeLocalOverride(tradeId);
+
+        // 2. Persist the updated trade and its original image under the new assigned ID
+        saveLocalOverride({
+          ...localUpdated,
+          id: assignedId,
+          imagen: localUpdated.imagen || rawImage,
+          imageUrl: localUpdated.imageUrl
+        });
+
+        return { ok: true, id: assignedId };
+      }
+
+      return { ok: true, id: tradeId };
     }
   } catch (err) {
     console.warn('Apps Script update remote network notice:', err);

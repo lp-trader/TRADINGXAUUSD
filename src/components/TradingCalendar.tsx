@@ -14,7 +14,9 @@ import {
   Image as ImageIcon,
   Edit3,
   Sparkles,
-  Trash2
+  Trash2,
+  ListFilter,
+  LayoutGrid
 } from 'lucide-react';
 
 interface TradingCalendarProps {
@@ -23,6 +25,7 @@ interface TradingCalendarProps {
   onEditTrade?: (trade: Trade) => void;
   onDeleteTrade?: (trade: Trade) => void;
   isOwner?: boolean;
+  screenMode?: 'phone' | 'tablet' | 'pc';
 }
 
 const MONTH_NAMES = [
@@ -67,8 +70,12 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
   onSelectTrade, 
   onEditTrade, 
   onDeleteTrade,
-  isOwner = false 
+  isOwner = false,
+  screenMode = 'pc'
 }) => {
+  const isPhone = screenMode === 'phone';
+  const [calendarViewMode, setCalendarViewMode] = useState<'grid' | 'list'>('grid');
+
   // Today's date reference
   const today = useMemo(() => new Date(), []);
   const todayYear = today.getFullYear();
@@ -191,6 +198,33 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
       worstDay,
       maxAbsDay: maxAbsDay > 0 ? maxAbsDay : 500
     };
+  }, [viewYear, viewMonth, tradesByDate]);
+
+  // List of days with active trades in this month (useful for compact mobile view)
+  const activeDaysInMonth = useMemo(() => {
+    const list: {
+      dateStr: string;
+      dayNumber: number;
+      dayLabel: string;
+      trades: Trade[];
+      netMoney: number;
+    }[] = [];
+    const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dayData = tradesByDate.get(dateStr);
+      if (dayData && dayData.trades.length > 0) {
+        const dowIndex = (new Date(viewYear, viewMonth - 1, d).getDay() + 6) % 7;
+        list.push({
+          dateStr,
+          dayNumber: d,
+          dayLabel: DAY_LABELS[dowIndex].full,
+          trades: dayData.trades,
+          netMoney: Math.round(dayData.netMoney * 100) / 100
+        });
+      }
+    }
+    return list;
   }, [viewYear, viewMonth, tradesByDate]);
 
   // Build calendar grid (Monday to Sunday) + weekly totals
@@ -452,159 +486,441 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
         </div>
       </div>
 
-      {/* Calendar Grid Container */}
-      <div className="overflow-x-auto pb-1">
-        <div className="min-w-[640px] select-none">
+      {/* Header Bar: Title, View Switcher & Month Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-5">
+        <div className="flex items-center justify-between sm:justify-start gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-base sm:text-xl font-bold text-white tracking-tight">
+                Calendario de Resultados
+              </h2>
+              <span className="text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#E0B341]/10 text-[#E0B341] border border-[#E0B341]/20">
+                {isPhone ? 'Móvil' : 'Vista Diaria'}
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5">
+              Rendimiento y operaciones por fecha de ejecución
+            </p>
+          </div>
+
+          {/* View Mode Toggle Button on Mobile / Tablet */}
+          <div className="flex sm:hidden items-center p-1 bg-white/[0.04] rounded-xl border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-all ${
+                calendarViewMode === 'grid'
+                  ? 'bg-[#E0B341]/20 text-[#E0B341]'
+                  : 'text-neutral-400'
+              }`}
+              title="Vista Cuadrícula"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode('list')}
+              className={`p-1.5 rounded-lg transition-all ${
+                calendarViewMode === 'list'
+                  ? 'bg-[#E0B341]/20 text-[#E0B341]'
+                  : 'text-neutral-400'
+              }`}
+              title="Vista Lista de Días"
+            >
+              <ListFilter className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Month Selector, View Switcher & "Hoy" Button */}
+        <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
           
-          {/* Day of week headers + Total Semanal */}
-          <div className="grid grid-cols-8 gap-1.5 sm:gap-2 mb-2 text-center text-[11px] font-mono font-medium text-neutral-400">
+          {/* Desktop/Tablet View Switcher */}
+          <div className="hidden sm:flex items-center p-1 bg-white/[0.04] rounded-xl border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode('grid')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                calendarViewMode === 'grid'
+                  ? 'bg-[#E0B341]/20 text-[#E0B341]'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cuadrícula</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode('list')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                calendarViewMode === 'list'
+                  ? 'bg-[#E0B341]/20 text-[#E0B341]'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <ListFilter className="w-3.5 h-3.5" />
+              <span>Días con Trades ({activeDaysInMonth.length})</span>
+            </button>
+          </div>
+
+          {latestTradeInfo && (viewYear !== latestTradeInfo.year || viewMonth !== latestTradeInfo.month) && (
+            <button
+              onClick={() => {
+                setViewYear(latestTradeInfo.year);
+                setViewMonth(latestTradeInfo.month);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-xl bg-[#E0B341]/15 hover:bg-[#E0B341]/25 text-[#E0B341] border border-[#E0B341]/30 transition-all"
+              title={`Ir al mes con operaciones (${MONTH_NAMES[latestTradeInfo.month - 1]} ${latestTradeInfo.year})`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#E0B341]" />
+              <span className="hidden xs:inline">Ver</span> <span>{MONTH_NAMES[latestTradeInfo.month - 1].slice(0, 3)} {latestTradeInfo.year}</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleGoToToday}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-200 hover:text-white border border-white/[0.08] transition-all"
+            title="Ir al mes actual"
+          >
+            <CalendarIcon className="w-3.5 h-3.5 text-[#E0B341]" />
+            <span>Hoy</span>
+          </button>
+
+          <div className="flex items-center bg-white/[0.03] rounded-xl border border-white/[0.08] p-0.5 sm:p-1">
+            <button
+              onClick={handlePrevMonth}
+              className="p-1 sm:p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+              title="Mes anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <span className="font-heading text-xs sm:text-sm font-bold text-white px-2 sm:px-3 font-mono min-w-[110px] sm:min-w-[130px] text-center">
+              {MONTH_NAMES[viewMonth - 1]} {viewYear}
+            </span>
+
+            <button
+              onClick={handleNextMonth}
+              className="p-1 sm:p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+              title="Mes siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Month Visible Summary Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-5">
+        {/* Resultado Neto del Mes */}
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+          <span className="text-[10px] sm:text-[11px] text-neutral-400 font-medium block truncate">
+            Resultado ({MONTH_NAMES[viewMonth - 1].slice(0, 3)})
+          </span>
+          <div className={`font-heading text-base sm:text-xl font-bold tabular-nums mt-0.5 ${
+            monthStats.netMoney > 0
+              ? 'text-[#34C97A]'
+              : monthStats.netMoney < 0
+                ? 'text-[#FF6B60]'
+                : 'text-neutral-400'
+          }`}>
+            {monthStats.totalTrades === 0
+              ? '$0.00'
+              : `${monthStats.netMoney >= 0 ? '+' : '-'}$${Math.abs(monthStats.netMoney).toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })}`}
+          </div>
+          <span className="text-[9px] sm:text-[10px] text-neutral-500 font-mono mt-0.5 block truncate">
+            {monthStats.totalTrades} {monthStats.totalTrades === 1 ? 'operación' : 'operaciones'}
+          </span>
+        </div>
+
+        {/* Días Verdes vs Días Rojos */}
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+          <span className="text-[10px] sm:text-[11px] text-neutral-400 font-medium block truncate">
+            Días W / L
+          </span>
+          <div className="font-heading text-base sm:text-xl font-bold tabular-nums mt-0.5 text-white flex items-center gap-1.5">
+            <span className="text-[#34C97A]">{monthStats.greenDays}W</span>
+            <span className="text-neutral-500 font-normal">·</span>
+            <span className="text-[#FF6B60]">{monthStats.redDays}L</span>
+          </div>
+          <span className="text-[9px] sm:text-[10px] text-neutral-500 font-mono mt-0.5 block truncate">
+            {monthStats.greenDays + monthStats.redDays > 0
+              ? `${Math.round((monthStats.greenDays / (monthStats.greenDays + monthStats.redDays)) * 100)}% positivos`
+              : 'Sin operaciones'}
+          </span>
+        </div>
+
+        {/* Mejor Día */}
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+          <span className="text-[10px] sm:text-[11px] text-[#34C97A] font-medium block flex items-center gap-1 truncate">
+            <TrendingUp className="w-3 h-3 shrink-0" />
+            <span>Mejor Día</span>
+          </span>
+          <div className="font-heading text-base sm:text-xl font-bold tabular-nums mt-0.5 text-[#34C97A]">
+            {monthStats.bestDay ? `+$${monthStats.bestDay.netMoney.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+          </div>
+          <span className="text-[9px] sm:text-[10px] text-neutral-500 font-mono mt-0.5 block truncate">
+            {monthStats.bestDay ? `${monthStats.bestDay.dayNumber} de ${MONTH_NAMES[viewMonth - 1]}` : 'Sin ganancias'}
+          </span>
+        </div>
+
+        {/* Peor Día */}
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+          <span className="text-[10px] sm:text-[11px] text-[#FF6B60] font-medium block flex items-center gap-1 truncate">
+            <TrendingDown className="w-3 h-3 shrink-0" />
+            <span>Peor Día</span>
+          </span>
+          <div className="font-heading text-base sm:text-xl font-bold tabular-nums mt-0.5 text-[#FF6B60]">
+            {monthStats.worstDay ? `-$${Math.abs(monthStats.worstDay.netMoney).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+          </div>
+          <span className="text-[9px] sm:text-[10px] text-neutral-500 font-mono mt-0.5 block truncate">
+            {monthStats.worstDay ? `${monthStats.worstDay.dayNumber} de ${MONTH_NAMES[viewMonth - 1]}` : 'Sin pérdidas'}
+          </span>
+        </div>
+      </div>
+
+      {/* VIEW MODE 1: GRID VIEW (100% responsive, no horizontal scroll) */}
+      {calendarViewMode === 'grid' && (
+        <div className="w-full select-none">
+          {/* Day of week headers */}
+          {/* On phone: 7 columns (L M X J V S D). On tablet/pc: 8 columns with Total Semanal */}
+          <div className={`grid ${isPhone ? 'grid-cols-7 gap-1 sm:gap-1.5' : 'grid-cols-8 gap-1.5 sm:gap-2'} mb-1.5 sm:mb-2 text-center text-[10px] sm:text-[11px] font-mono font-medium text-neutral-400`}>
             {DAY_LABELS.map((day, idx) => (
               <div key={idx} className="py-1">
-                <span className="sm:hidden">{day.short}</span>
-                <span className="hidden sm:inline">{day.full}</span>
+                <span className={isPhone ? '' : 'sm:hidden'}>{day.short}</span>
+                {!isPhone && <span className="hidden sm:inline">{day.full}</span>}
               </div>
             ))}
-            <div className="py-1 text-[#E0B341] font-bold">
-              <span className="sm:hidden">Sem.</span>
-              <span className="hidden sm:inline">Total Sem.</span>
-            </div>
+            {!isPhone && (
+              <div className="py-1 text-[#E0B341] font-bold">
+                <span className="sm:hidden">Sem.</span>
+                <span className="hidden sm:inline">Total Sem.</span>
+              </div>
+            )}
           </div>
 
           {/* Calendar Weeks */}
           <div className="space-y-1.5 sm:space-y-2">
             {weeks.map((week) => (
-              <div key={week.weekIndex} className="grid grid-cols-8 gap-1.5 sm:gap-2">
+              <div key={week.weekIndex} className="space-y-1">
                 
-                {/* 7 Days of the week */}
-                {week.days.map((cell, dayIdx) => {
-                  const hasTrades = Boolean(cell.summary && cell.summary.trades.length > 0);
-                  const netMoney = cell.summary ? cell.summary.netMoney : 0;
-                  const isPositive = netMoney > 0;
-                  const isNegative = netMoney < 0;
-                  const tradesCount = cell.summary ? cell.summary.trades.length : 0;
+                {/* Week Grid Row */}
+                <div className={`grid ${isPhone ? 'grid-cols-7 gap-1 sm:gap-1.5' : 'grid-cols-8 gap-1.5 sm:gap-2'}`}>
+                  
+                  {/* 7 Days of the week */}
+                  {week.days.map((cell, dayIdx) => {
+                    const hasTrades = Boolean(cell.summary && cell.summary.trades.length > 0);
+                    const netMoney = cell.summary ? cell.summary.netMoney : 0;
+                    const isPositive = netMoney > 0;
+                    const isNegative = netMoney < 0;
+                    const tradesCount = cell.summary ? cell.summary.trades.length : 0;
 
-                  // Calculate proportional heatmap intensity (0.12 - 0.48)
-                  const ratio = hasTrades ? Math.min(Math.abs(netMoney) / monthStats.maxAbsDay, 1) : 0;
+                    const ratio = hasTrades ? Math.min(Math.abs(netMoney) / monthStats.maxAbsDay, 1) : 0;
 
-                  let cellBg = 'bg-white/[0.02]';
-                  let cellBorder = 'border-white/[0.05]';
-                  let textColor = 'text-neutral-400';
+                    let cellBg = 'bg-white/[0.02]';
+                    let cellBorder = 'border-white/[0.05]';
+                    let textColor = 'text-neutral-400';
 
-                  if (hasTrades) {
-                    if (isPositive) {
-                      cellBg = `rgba(52, 201, 122, ${0.12 + ratio * 0.36})`;
-                      cellBorder = `rgba(52, 201, 122, ${0.25 + ratio * 0.45})`;
-                      textColor = 'text-[#34C97A]';
-                    } else if (isNegative) {
-                      cellBg = `rgba(255, 107, 96, ${0.12 + ratio * 0.36})`;
-                      cellBorder = `rgba(255, 107, 96, ${0.25 + ratio * 0.45})`;
-                      textColor = 'text-[#FF6B60]';
-                    } else {
-                      cellBg = 'rgba(224, 179, 65, 0.12)';
-                      cellBorder = 'rgba(224, 179, 65, 0.3)';
-                      textColor = 'text-[#E0B341]';
+                    if (hasTrades) {
+                      if (isPositive) {
+                        cellBg = `rgba(52, 201, 122, ${0.14 + ratio * 0.38})`;
+                        cellBorder = `rgba(52, 201, 122, ${0.3 + ratio * 0.45})`;
+                        textColor = 'text-[#34C97A]';
+                      } else if (isNegative) {
+                        cellBg = `rgba(255, 107, 96, ${0.14 + ratio * 0.38})`;
+                        cellBorder = `rgba(255, 107, 96, ${0.3 + ratio * 0.45})`;
+                        textColor = 'text-[#FF6B60]';
+                      } else {
+                        cellBg = 'rgba(224, 179, 65, 0.14)';
+                        cellBorder = 'rgba(224, 179, 65, 0.35)';
+                        textColor = 'text-[#E0B341]';
+                      }
                     }
-                  }
 
-                  // Non-current month days (faded)
-                  const opacityClass = !cell.isCurrentMonth ? 'opacity-30 pointer-events-none' : '';
+                    const opacityClass = !cell.isCurrentMonth ? 'opacity-25 pointer-events-none' : '';
 
-                  // Today highlight with gold border
-                  const todayBorder = cell.isToday
-                    ? 'ring-2 ring-[#E0B341] border-[#E0B341] shadow-[0_0_12px_rgba(224,179,65,0.25)]'
-                    : '';
+                    const todayBorder = cell.isToday
+                      ? 'ring-2 ring-[#E0B341] border-[#E0B341] shadow-[0_0_12px_rgba(224,179,65,0.25)]'
+                      : '';
 
-                  return (
-                    <div
-                      key={dayIdx}
-                      onClick={() => {
-                        if (hasTrades && cell.summary) {
-                          setActiveDayModal({
-                            dateStr: cell.dateStr,
-                            dayNumber: cell.dayNumber,
-                            trades: cell.summary.trades,
-                            netMoney: cell.summary.netMoney
-                          });
-                        }
-                      }}
-                      style={{
-                        backgroundColor: hasTrades ? cellBg : undefined,
-                        borderColor: hasTrades ? cellBorder : undefined
-                      }}
-                      className={`relative min-h-[56px] sm:min-h-[72px] lg:min-h-[80px] p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border transition-all flex flex-col justify-between ${
-                        hasTrades ? cellBorder : 'border-white/[0.05] bg-white/[0.02]'
-                      } ${todayBorder} ${opacityClass} ${
-                        hasTrades ? 'cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-95 shadow-md' : ''
-                      }`}
-                    >
-                      {/* Top row: Day Number + Today indicator */}
-                      <div className="flex items-center justify-between">
-                        <span className={`text-[10px] sm:text-xs font-mono font-bold leading-none ${
-                          cell.isToday ? 'text-[#E0B341]' : cell.isCurrentMonth ? 'text-neutral-300' : 'text-neutral-600'
-                        }`}>
-                          {cell.dayNumber}
-                        </span>
+                    return (
+                      <div
+                        key={dayIdx}
+                        onClick={() => {
+                          if (hasTrades && cell.summary) {
+                            setActiveDayModal({
+                              dateStr: cell.dateStr,
+                              dayNumber: cell.dayNumber,
+                              trades: cell.summary.trades,
+                              netMoney: cell.summary.netMoney
+                            });
+                          }
+                        }}
+                        style={{
+                          backgroundColor: hasTrades ? cellBg : undefined,
+                          borderColor: hasTrades ? cellBorder : undefined
+                        }}
+                        className={`relative min-h-[46px] xs:min-h-[52px] sm:min-h-[70px] lg:min-h-[78px] p-1 sm:p-2 rounded-lg sm:rounded-2xl border transition-all flex flex-col justify-between ${
+                          hasTrades ? cellBorder : 'border-white/[0.05] bg-white/[0.02]'
+                        } ${todayBorder} ${opacityClass} ${
+                          hasTrades ? 'cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-95 shadow-md' : ''
+                        }`}
+                      >
+                        {/* Day number + today indicator */}
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[9px] xs:text-[10px] sm:text-xs font-mono font-bold leading-none ${
+                            cell.isToday ? 'text-[#E0B341]' : cell.isCurrentMonth ? 'text-neutral-300' : 'text-neutral-600'
+                          }`}>
+                            {cell.dayNumber}
+                          </span>
 
-                        {cell.isToday && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#E0B341] animate-pulse" title="Hoy" />
+                          {cell.isToday && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#E0B341] animate-pulse" title="Hoy" />
+                          )}
+                        </div>
+
+                        {/* Content: Money and trades count */}
+                        {hasTrades && (
+                          <div className="my-auto text-center sm:text-right">
+                            <div className={`font-mono text-[9px] xs:text-[10px] sm:text-xs lg:text-sm font-bold tabular-nums leading-tight truncate ${textColor}`}>
+                              {formatMoney(netMoney)}
+                            </div>
+                            
+                            {!isPhone && (
+                              <div className="hidden sm:block text-[9px] font-mono text-neutral-400 mt-0.5 truncate">
+                                {tradesCount} {tradesCount === 1 ? 'trade' : 'trades'}
+                              </div>
+                            )}
+                          </div>
                         )}
+
+                        {!hasTrades && <div className="h-1" />}
+                      </div>
+                    );
+                  })}
+
+                  {/* 8th Column on Tablet & PC: Weekly Total */}
+                  {!isPhone && (
+                    <div className={`min-h-[56px] sm:min-h-[70px] lg:min-h-[78px] p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border flex flex-col justify-between bg-white/[0.03] border-white/[0.08] ${
+                      week.weeklyTradesCount > 0 ? 'border-[#E0B341]/30' : ''
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] sm:text-[10px] font-mono uppercase text-neutral-500 font-semibold">
+                          Sem {week.weekIndex}
+                        </span>
                       </div>
 
-                      {/* Content: Money and Trades Count (Only if trades exist, else blank neutral) */}
-                      {hasTrades && (
-                        <div className="my-auto text-center sm:text-right">
-                          <div className={`font-mono text-[11px] sm:text-xs lg:text-sm font-bold tabular-nums leading-tight ${textColor}`}>
-                            {formatMoney(netMoney)}
-                          </div>
-                          
-                          {/* Trades count: hidden on small screens if space is short */}
-                          <div className="hidden sm:block text-[9px] font-mono text-neutral-400 mt-0.5 truncate">
-                            {tradesCount} {tradesCount === 1 ? 'trade' : 'trades'}
-                          </div>
+                      <div className="my-auto text-center sm:text-right">
+                        <div className={`font-mono text-[10px] sm:text-xs lg:text-sm font-bold tabular-nums leading-tight ${
+                          week.weeklyNetMoney > 0
+                            ? 'text-[#34C97A]'
+                            : week.weeklyNetMoney < 0
+                              ? 'text-[#FF6B60]'
+                              : 'text-neutral-500'
+                        }`}>
+                          {week.weeklyTradesCount === 0 ? '$0' : formatMoney(week.weeklyNetMoney)}
                         </div>
-                      )}
 
-                      {/* Bottom placeholder for consistent alignment */}
-                      {!hasTrades && <div className="h-2" />}
+                        <div className="hidden sm:block text-[9px] font-mono text-neutral-500 mt-0.5 truncate">
+                          {week.weeklyTradesCount} {week.weeklyTradesCount === 1 ? 'trade' : 'trades'}
+                        </div>
+                      </div>
+
+                      <div className="h-1" />
                     </div>
-                  );
-                })}
+                  )}
 
-                {/* 8th Column: Weekly Total */}
-                <div className={`min-h-[56px] sm:min-h-[72px] lg:min-h-[80px] p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border flex flex-col justify-between bg-white/[0.03] border-white/[0.08] ${
-                  week.weeklyTradesCount > 0 ? 'border-[#E0B341]/30' : ''
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] sm:text-[10px] font-mono uppercase text-neutral-500 font-semibold">
-                      Sem {week.weekIndex}
+                </div>
+
+                {/* On Phone: Compact Weekly Total Summary Footer under each week that has trades */}
+                {isPhone && week.weeklyTradesCount > 0 && (
+                  <div className="flex items-center justify-between px-2 py-0.5 rounded-md bg-white/[0.02] border border-white/[0.04] text-[9px] font-mono">
+                    <span className="text-neutral-400">Total Semana {week.weekIndex}:</span>
+                    <span className={`font-bold ${
+                      week.weeklyNetMoney > 0 ? 'text-[#34C97A]' : week.weeklyNetMoney < 0 ? 'text-[#FF6B60]' : 'text-neutral-300'
+                    }`}>
+                      {formatMoney(week.weeklyNetMoney)} ({week.weeklyTradesCount} {week.weeklyTradesCount === 1 ? 'trade' : 'trades'})
                     </span>
                   </div>
-
-                  <div className="my-auto text-center sm:text-right">
-                    <div className={`font-mono text-[11px] sm:text-xs lg:text-sm font-bold tabular-nums leading-tight ${
-                      week.weeklyNetMoney > 0
-                        ? 'text-[#34C97A]'
-                        : week.weeklyNetMoney < 0
-                          ? 'text-[#FF6B60]'
-                          : 'text-neutral-500'
-                    }`}>
-                      {week.weeklyTradesCount === 0 ? '$0' : formatMoney(week.weeklyNetMoney)}
-                    </div>
-
-                    <div className="hidden sm:block text-[9px] font-mono text-neutral-500 mt-0.5 truncate">
-                      {week.weeklyTradesCount} {week.weeklyTradesCount === 1 ? 'trade' : 'trades'}
-                    </div>
-                  </div>
-
-                  <div className="h-1" />
-                </div>
+                )}
 
               </div>
             ))}
           </div>
-
         </div>
-      </div>
+      )}
+
+      {/* VIEW MODE 2: LIST VIEW (Super clear on Mobile or any device) */}
+      {calendarViewMode === 'list' && (
+        <div className="space-y-2">
+          {activeDaysInMonth.length === 0 ? (
+            <div className="p-8 text-center text-xs text-neutral-400 bg-white/[0.02] rounded-2xl border border-white/[0.06]">
+              No hay operaciones registradas en {MONTH_NAMES[viewMonth - 1]} de {viewYear}.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {activeDaysInMonth.map((day) => {
+                const isPos = day.netMoney > 0;
+                const isNeg = day.netMoney < 0;
+
+                return (
+                  <div
+                    key={day.dateStr}
+                    onClick={() => {
+                      setActiveDayModal({
+                        dateStr: day.dateStr,
+                        dayNumber: day.dayNumber,
+                        trades: day.trades,
+                        netMoney: day.netMoney
+                      });
+                    }}
+                    className="p-3.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-[#E0B341]/40 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center font-mono shrink-0 border ${
+                        isPos
+                          ? 'bg-[#34C97A]/15 border-[#34C97A]/30 text-[#34C97A]'
+                          : isNeg
+                            ? 'bg-[#FF6B60]/15 border-[#FF6B60]/30 text-[#FF6B60]'
+                            : 'bg-white/[0.05] border-white/[0.1] text-white'
+                      }`}>
+                        <span className="text-[10px] font-semibold leading-none">{day.dayLabel}</span>
+                        <span className="text-sm font-bold leading-none mt-0.5">{day.dayNumber}</span>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-heading text-xs sm:text-sm font-bold text-white group-hover:text-[#E0B341] transition-colors">
+                            {day.dayNumber} de {MONTH_NAMES[viewMonth - 1]}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-neutral-400 font-mono mt-0.5 block">
+                          {day.trades.length} {day.trades.length === 1 ? 'operación' : 'operaciones'} · {day.trades.map((t) => t.setup).filter(Boolean).slice(0, 2).join(', ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className={`font-mono text-sm sm:text-base font-bold tabular-nums block ${
+                        isPos ? 'text-[#34C97A]' : isNeg ? 'text-[#FF6B60]' : 'text-neutral-400'
+                      }`}>
+                        {formatMoney(day.netMoney)}
+                      </span>
+                      <span className="text-[10px] text-[#E0B341] group-hover:underline flex items-center justify-end gap-1 mt-0.5">
+                        <Maximize2 className="w-2.5 h-2.5" />
+                        <span>Ver trades</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal: Day's Trades Details Popup */}
       {activeDayModal && (

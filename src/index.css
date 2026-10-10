@@ -15,6 +15,8 @@
     font-family: var(--font-body);
     background-color: #0B0D12;
     color: #EDEDED;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   h1, h2, h3, h4, h5, h6, .font-heading {

@@ -93,21 +93,21 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-[#0E1119]/80 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 ${
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.08] bg-[#0E1119]/80 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1 shrink-0 ${
               isBuy 
                 ? 'bg-[#34C97A]/20 text-[#34C97A] border border-[#34C97A]/30' 
                 : 'bg-[#FF6B60]/20 text-[#FF6B60] border border-[#FF6B60]/30'
             }`}>
-              {isBuy ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+              {isBuy ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
               <span>{trade.direccion || '—'}</span>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-heading text-lg font-bold text-white">{trade.activo || '—'}</span>
-                <span className="text-xs font-mono text-[#E0B341] px-2 py-0.5 rounded bg-[#E0B341]/10 border border-[#E0B341]/20">
+            <div className="min-w-0 truncate">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="font-heading text-base sm:text-lg font-bold text-white">{trade.activo || '—'}</span>
+                <span className="text-[11px] sm:text-xs font-mono text-[#E0B341] px-1.5 sm:px-2 py-0.5 rounded bg-[#E0B341]/10 border border-[#E0B341]/20">
                   {trade.fecha || '—'}
                 </span>
                 <span className="text-xs text-neutral-400 hidden sm:inline">
@@ -117,18 +117,18 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {isOwner && onEditTrade && (
               <button
                 onClick={() => {
                   onClose();
                   onEditTrade(trade);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-[#E0B341] text-[#0B0D12] hover:brightness-110 active:scale-95 text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#E0B341] text-[#0B0D12] hover:brightness-110 active:scale-95 text-xs font-bold transition-all shadow-md flex items-center gap-1"
                 title="Editar este trade"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>Editar</span>
+                <span className="hidden xs:inline">Editar</span>
               </button>
             )}
 
@@ -137,17 +137,17 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
                 onClick={() => {
                   onDeleteTrade(trade);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-[#FF6B60]/15 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 text-xs font-semibold transition-all flex items-center gap-1.5"
+                className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-[#FF6B60]/15 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 text-xs font-semibold transition-all flex items-center gap-1"
                 title="Eliminar este trade"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Eliminar</span>
+                <span className="hidden xs:inline">Eliminar</span>
               </button>
             )}
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-white/[0.04] text-neutral-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl bg-white/[0.04] text-neutral-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08] transition-colors"
               title="Cerrar"
             >
               <X className="w-5 h-5" />
@@ -156,7 +156,7 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6">
           
           {/* Main Chart Image with Zoom Button */}
           {trade.imageUrl ? (
@@ -373,21 +373,21 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/[0.08] bg-[#0E1119]/80 flex items-center justify-between shrink-0">
-          <span className="text-xs text-neutral-500 font-mono">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-white/[0.08] bg-[#0E1119]/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+          <span className="text-[11px] sm:text-xs text-neutral-500 font-mono text-center sm:text-left">
             {trade.fecha || '—'} · {trade.activo || '—'}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {isOwner && onDeleteTrade && (
               <button
                 onClick={() => {
                   onDeleteTrade(trade);
                 }}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-[#FF6B60]/15 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 transition-all flex items-center gap-1.5"
+                className="flex-1 sm:flex-none px-3 py-2 text-xs font-semibold rounded-xl bg-[#FF6B60]/15 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 transition-all flex items-center justify-center gap-1.5"
                 title="Eliminar este trade"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Eliminar Trade</span>
+                <span>Eliminar</span>
               </button>
             )}
             {isOwner && onEditTrade && (
@@ -396,17 +396,17 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
                   onClose();
                   onEditTrade(trade);
                 }}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-[#E0B341] text-[#0B0D12] hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+                className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-xl bg-[#E0B341] text-[#0B0D12] hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>Editar Trade</span>
+                <span>Editar</span>
               </button>
             )}
             <button
               onClick={onClose}
-              className="px-5 py-2 text-xs font-semibold rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white transition-colors"
             >
-              Cerrar Detalle
+              Cerrar
             </button>
           </div>
         </div>

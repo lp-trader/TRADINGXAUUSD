@@ -38,30 +38,30 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
   });
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 sm:space-y-6">
       {/* Header & Filter Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="font-heading text-xl sm:text-2xl font-bold text-white tracking-tight">
+            <h2 className="font-heading text-lg sm:text-2xl font-bold text-white tracking-tight">
               Galería de Trades
             </h2>
-            <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-neutral-300 border border-white/[0.08]">
+            <span className="text-[10px] sm:text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-neutral-300 border border-white/[0.08]">
               {filteredTrades.length} de {trades.length}
             </span>
           </div>
-          <p className="text-xs text-neutral-400 mt-1">
-            Haz clic en cualquier tarjeta para abrir la imagen en grande (lightbox) y el análisis completo.
+          <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5 sm:mt-1">
+            Haz clic en cualquier tarjeta para abrir el gráfico y su análisis completo
           </p>
         </div>
 
         {/* Filter Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Segmented Result Filter */}
-          <div className="flex items-center p-1 bg-white/[0.03] rounded-xl border border-white/[0.08]">
+          <div className="flex items-center p-1 bg-white/[0.03] rounded-xl border border-white/[0.08] flex-1 sm:flex-none justify-between sm:justify-start">
             <button
               onClick={() => setFilterResult('ALL')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg transition-all ${
                 filterResult === 'ALL'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-neutral-400 hover:text-white'
@@ -71,7 +71,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
             </button>
             <button
               onClick={() => setFilterResult('WIN')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg transition-all ${
                 filterResult === 'WIN'
                   ? 'bg-[#34C97A]/20 text-[#34C97A] shadow-sm border border-[#34C97A]/30'
                   : 'text-neutral-400 hover:text-[#34C97A]'
@@ -81,7 +81,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
             </button>
             <button
               onClick={() => setFilterResult('LOSS')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg transition-all ${
                 filterResult === 'LOSS'
                   ? 'bg-[#FF6B60]/20 text-[#FF6B60] shadow-sm border border-[#FF6B60]/30'
                   : 'text-neutral-400 hover:text-[#FF6B60]'
@@ -92,7 +92,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
           </div>
 
           {/* Search Box */}
-          <div className="relative min-w-[180px] sm:min-w-[220px]">
+          <div className="relative w-full sm:w-auto min-w-[160px] sm:min-w-[220px]">
             <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"

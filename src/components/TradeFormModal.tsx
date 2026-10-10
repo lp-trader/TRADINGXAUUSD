@@ -254,7 +254,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
           SESION: sesion,
           EMOTION: emotion,
           LECCION: leccion.trim(),
-          IMAGEN: existingImageId
+          IMAGEN: existingImageId || (tradeToEdit?.imagen || '')
         },
         imagen: imagenPayload
       };
@@ -291,31 +291,31 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="glass-dropdown relative w-full max-w-2xl rounded-3xl border border-white/[0.12] shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col"
+        className="glass-dropdown relative w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-white/[0.12] shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-[#0E1119]/80 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.08] bg-[#0E1119]/80 shrink-0">
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${isEditing ? 'bg-[#34C97A]' : 'bg-[#E0B341]'}`} />
-            <h3 className="font-heading text-lg font-bold text-white">
+            <h3 className="font-heading text-base sm:text-lg font-bold text-white">
               {isEditing ? `Editar Trade ${tradeToEdit?.id ? `(${tradeToEdit.id})` : ''}` : 'Nuevo Trade'}
             </h3>
-            <span className="text-xs font-mono text-[#E0B341] px-2 py-0.5 rounded bg-[#E0B341]/10 border border-[#E0B341]/20">
+            <span className="text-[10px] sm:text-xs font-mono text-[#E0B341] px-1.5 sm:px-2 py-0.5 rounded bg-[#E0B341]/10 border border-[#E0B341]/20">
               Modo Dueño
             </span>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/[0.04] text-neutral-400 hover:text-white transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl bg-white/[0.04] text-neutral-400 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-3.5 sm:space-y-4">
           
           {/* Error Message */}
           {errorMessage && (

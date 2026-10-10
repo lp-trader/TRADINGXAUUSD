@@ -29,10 +29,12 @@ import { TradeGallery } from './components/TradeGallery';
 import { TradeDetailModal } from './components/TradeDetailModal';
 import { TradeFormModal } from './components/TradeFormModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
+import { useScreenMode } from './hooks/useScreenMode';
 
 import { Loader2, AlertCircle, RefreshCw, PlusCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
 export default function App() {
+  const screenInfo = useScreenMode();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -175,7 +177,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0D12] text-[#EDEDED] flex flex-col font-sans selection:bg-[#E0B341]/30 selection:text-[#E0B341]">
+    <div className="min-h-screen bg-[#0B0D12] text-[#EDEDED] flex flex-col font-sans selection:bg-[#E0B341]/30 selection:text-[#E0B341] overflow-x-hidden w-full max-w-full">
       
       {/* Toast Notification */}
       {toastMessage && (
@@ -195,10 +197,11 @@ export default function App() {
         onOpenNewTrade={handleOpenNewTrade}
         onRefreshTrades={loadTrades}
         isLoading={isLoading}
+        screenInfo={screenInfo}
       />
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
         
         {/* Loading State Skeleton */}
         {isLoading && trades.length === 0 && (
@@ -219,7 +222,7 @@ export default function App() {
 
         {/* Fetch Error Banner */}
         {fetchError && (
-          <div className="p-5 rounded-3xl bg-[#FF6B60]/10 border border-[#FF6B60]/30 my-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FF6B60]/10 border border-[#FF6B60]/30 my-4 sm:my-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <AlertCircle className="w-5 h-5 text-[#FF6B60] shrink-0 mt-0.5" />
               <div className="min-w-0 flex-1">
@@ -241,7 +244,7 @@ export default function App() {
 
         {/* Populated Content */}
         {(!isLoading || trades.length > 0) && (
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6">
             
             {/* 1. Hero + Dashboard Metrics */}
             <HeroStats metrics={metrics} />
@@ -253,6 +256,7 @@ export default function App() {
               onEditTrade={handleOpenEditTrade}
               onDeleteTrade={handleRequestDeleteTrade}
               isOwner={isOwner}
+              screenMode={screenInfo.mode}
             />
 
             {/* 2. Equity Curve */}

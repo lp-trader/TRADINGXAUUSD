@@ -56,16 +56,16 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-3/4 max-w-3xl h-64 bg-[#E0B341]/[0.05] blur-[120px] pointer-events-none rounded-full" />
 
       {/* Main Hero Card */}
-      <div className="glass-panel relative rounded-3xl p-6 sm:p-8 lg:p-10 border border-white/[0.08] shadow-2xl overflow-hidden mb-6">
+      <div className="glass-panel relative rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-white/[0.08] shadow-2xl overflow-hidden mb-5 sm:mb-6">
         {/* Subtle decorative gold top highlight */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#E0B341] to-transparent opacity-70" />
 
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 sm:gap-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 sm:gap-8">
           
           {/* Left: Net Result Hero */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-neutral-400 font-medium">
-              <span className="uppercase tracking-widest text-[#E0B341]">Portafolio XAU/USD</span>
+          <div className="space-y-2 min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-neutral-400 font-medium">
+              <span className="uppercase tracking-widest text-[#E0B341] font-semibold">Portafolio XAU/USD</span>
               <span aria-hidden="true">·</span>
               <span>Cuentas Fondeadas</span>
               <span aria-hidden="true">·</span>
@@ -75,10 +75,10 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
               </span>
             </div>
 
-            <div className="pt-1">
+            <div className="pt-0.5 sm:pt-1">
               <p className="text-xs sm:text-sm text-neutral-400 font-medium">Resultado Neto Acumulado</p>
-              <div className="flex items-baseline gap-3 mt-1">
-                <h1 className={`font-heading text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight tabular-nums ${
+              <div className="flex flex-wrap items-baseline gap-2 sm:gap-3 mt-1">
+                <h1 className={`font-heading text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight tabular-nums break-words ${
                   !hasTrades
                     ? 'text-neutral-300'
                     : isPositive
@@ -94,7 +94,7 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
                   }
                 </h1>
                 
-                <div className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold ${
+                <div className={`flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-xl text-[11px] sm:text-xs font-semibold ${
                   !hasTrades
                     ? 'bg-white/[0.05] text-neutral-400 border border-white/[0.08]'
                     : isPositive 
@@ -107,48 +107,48 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-neutral-400 max-w-xl pt-1">
+            <p className="text-xs sm:text-sm text-neutral-400 max-w-xl pt-0.5 sm:pt-1 leading-relaxed">
               Registro cuantitativo de operaciones en el oro spot contra dólar (XAU/USD). Control estricto de riesgo con backend en Google Sheets.
             </p>
           </div>
 
           {/* Right: Key Metric Cards Grid */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:w-[400px] shrink-0">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:w-[400px] shrink-0">
             {/* Win Rate */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
-              <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="text-xs font-medium">Win Rate</span>
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
+              <div className="flex items-center justify-between text-neutral-400 mb-0.5 sm:mb-1">
+                <span className="text-[11px] sm:text-xs font-medium">Win Rate</span>
                 <Target className="w-3.5 h-3.5 text-[#E0B341]" />
               </div>
-              <div className="font-heading text-2xl font-bold text-white tabular-nums">
+              <div className="font-heading text-xl sm:text-2xl font-bold text-white tabular-nums">
                 {!hasTrades || isNaN(metrics.winRate) ? '—' : `${animatedWinRate.toFixed(1)}%`}
               </div>
-              <div className="text-[11px] text-neutral-500 mt-1">
+              <div className="text-[10px] sm:text-[11px] text-neutral-500 mt-0.5 truncate">
                 {metrics.winCount} de {metrics.totalTrades} ganados
               </div>
             </div>
 
             {/* Profit Factor */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
-              <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="text-xs font-medium">Profit Factor</span>
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
+              <div className="flex items-center justify-between text-neutral-400 mb-0.5 sm:mb-1">
+                <span className="text-[11px] sm:text-xs font-medium">Profit Factor</span>
                 <Scale className="w-3.5 h-3.5 text-[#E0B341]" />
               </div>
-              <div className="font-heading text-2xl font-bold text-[#E0B341] tabular-nums">
+              <div className="font-heading text-xl sm:text-2xl font-bold text-[#E0B341] tabular-nums">
                 {!hasTrades || isNaN(metrics.profitFactor) ? '—' : (metrics.grossLoss === 0 ? '∞' : animatedProfitFactor.toFixed(2))}
               </div>
-              <div className="text-[11px] text-neutral-500 mt-1 truncate">
+              <div className="text-[10px] sm:text-[11px] text-neutral-500 mt-0.5 truncate">
                 {!hasTrades ? '$0 / $0' : `$${metrics.grossProfit.toLocaleString()} / $${metrics.grossLoss.toLocaleString()}`}
               </div>
             </div>
 
             {/* R Real Promedio */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
-              <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="text-xs font-medium">R Real Promedio</span>
-                <TrendingUp className="w-3.5 h-3.5 text-[#34C97A]" />
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
+              <div className="flex items-center justify-between text-neutral-400 mb-0.5 sm:mb-1">
+                <span className="text-[11px] sm:text-xs font-medium truncate">R Real Prom.</span>
+                <TrendingUp className="w-3.5 h-3.5 text-[#34C97A] shrink-0" />
               </div>
-              <div className={`font-heading text-2xl font-bold tabular-nums ${
+              <div className={`font-heading text-xl sm:text-2xl font-bold tabular-nums ${
                 !hasTrades || metrics.avgRealR === null || isNaN(metrics.avgRealR)
                   ? 'text-neutral-400'
                   : metrics.avgRealR >= 0
@@ -159,36 +159,36 @@ export const HeroStats: React.FC<HeroStatsProps> = ({ metrics }) => {
                   ? '—'
                   : `${metrics.avgRealR >= 0 ? '+' : ''}${animatedAvgRealR.toFixed(2)}R`}
               </div>
-              <div className="text-[11px] text-neutral-500 mt-1 truncate">
+              <div className="text-[10px] sm:text-[11px] text-neutral-500 mt-0.5 truncate">
                 (Salida - Entrada) / |SL|
               </div>
             </div>
 
             {/* R:R Promedio Planeado */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
-              <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="text-xs font-medium">R:R Planeado</span>
-                <Zap className="w-3.5 h-3.5 text-[#E0B341]" />
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors">
+              <div className="flex items-center justify-between text-neutral-400 mb-0.5 sm:mb-1">
+                <span className="text-[11px] sm:text-xs font-medium truncate">R:R Planeado</span>
+                <Zap className="w-3.5 h-3.5 text-[#E0B341] shrink-0" />
               </div>
-              <div className="font-heading text-2xl font-bold text-neutral-200 tabular-nums">
+              <div className="font-heading text-xl sm:text-2xl font-bold text-neutral-200 tabular-nums">
                 {!hasTrades || metrics.avgPlannedRR === 0 || isNaN(metrics.avgPlannedRR) ? '—' : `1:${animatedAvgRR.toFixed(2)}`}
               </div>
-              <div className="text-[11px] text-neutral-500 mt-1 truncate">
+              <div className="text-[10px] sm:text-[11px] text-neutral-500 mt-0.5 truncate">
                 |TP-Entrada| / |Entrada-SL|
               </div>
             </div>
 
             {/* Total Trades */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors col-span-2">
-              <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="text-xs font-medium">Total Operaciones</span>
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#E0B341]/30 transition-colors col-span-2">
+              <div className="flex items-center justify-between text-neutral-400 mb-0.5 sm:mb-1">
+                <span className="text-[11px] sm:text-xs font-medium">Total Operaciones</span>
                 <Shield className="w-3.5 h-3.5 text-neutral-400" />
               </div>
-              <div className="flex items-baseline justify-between">
-                <div className="font-heading text-2xl font-bold text-white tabular-nums">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="font-heading text-xl sm:text-2xl font-bold text-white tabular-nums">
                   {metrics.totalTrades ?? '—'}
                 </div>
-                <div className="text-[11px] text-neutral-400 font-mono">
+                <div className="text-[10px] sm:text-[11px] text-neutral-400 font-mono truncate">
                   {metrics.winCount} Ganadas · {metrics.lossCount} Perdidas
                 </div>
               </div>

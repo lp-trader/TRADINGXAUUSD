@@ -20,59 +20,59 @@ export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
     activeTab === 'SETUP' ? setupStats : emotionStats;
 
   return (
-    <section className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-xl mb-8">
+    <section className="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-white/[0.08] shadow-xl mb-6 sm:mb-8">
       {/* Header and Filter Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-5 sm:mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-heading text-lg sm:text-xl font-bold text-white tracking-tight">
+            <h3 className="font-heading text-base sm:text-xl font-bold text-white tracking-tight">
               Rendimiento por Categoría
             </h3>
-            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-neutral-300 border border-white/[0.08]">
-              Análisis Estadístico
+            <span className="text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-neutral-300 border border-white/[0.08]">
+              Estadísticas
             </span>
           </div>
-          <p className="text-xs text-neutral-400 mt-1">
-            Resultado neto y Win Rate agrupados por Sesión, Setup operativo y Estado emocional
+          <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5 sm:mt-1">
+            Resultado neto y Win Rate agrupados por Sesión, Setup y Emoción
           </p>
         </div>
 
         {/* Tab Selector */}
-        <div className="flex items-center p-1 bg-white/[0.03] rounded-2xl border border-white/[0.08] self-start sm:self-auto">
+        <div className="flex flex-wrap items-center p-1 bg-white/[0.03] rounded-xl sm:rounded-2xl border border-white/[0.08] self-stretch sm:self-auto gap-1">
           <button
             onClick={() => setActiveTab('SESION')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-xl transition-all ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg sm:rounded-xl transition-all ${
               activeTab === 'SESION'
                 ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Por Sesión</span>
+            <span>Sesión</span>
           </button>
 
           <button
             onClick={() => setActiveTab('SETUP')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-xl transition-all ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg sm:rounded-xl transition-all ${
               activeTab === 'SETUP'
                 ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Por Setup</span>
+            <span>Setup</span>
           </button>
 
           <button
             onClick={() => setActiveTab('EMOTION')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-xl transition-all ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg sm:rounded-xl transition-all ${
               activeTab === 'EMOTION'
                 ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Heart className="w-3.5 h-3.5" />
-            <span>Por Emoción</span>
+            <span>Emoción</span>
           </button>
         </div>
       </div>

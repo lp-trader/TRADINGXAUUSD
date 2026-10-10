@@ -207,19 +207,44 @@
             return;
           }
           const data = JSON.parse(text);
+          let rawList = [];
           if (Array.isArray(data)) {
-            setTrades(data.map(parseTrade));
-          } else if (data && typeof data === 'object') {
-            if (Array.isArray(data.trades)) {
-              setTrades(data.trades.map(parseTrade));
-            } else if (data.error) {
-              throw new Error(`Apps Script: ${data.error}`);
-            } else {
-              setTrades([]);
-            }
-          } else {
-            setTrades([]);
+            rawList = data;
+          } else if (data && typeof data === 'object' && Array.isArray(data.trades)) {
+            rawList = data.trades;
+          } else if (data && data.error) {
+            throw new Error(`Apps Script: ${data.error}`);
           }
+
+          // Deduplicate trades created by edits
+          const groups = new Map();
+          rawList.forEach((item, index) => {
+            const activo = String(item.ACTIVO || '').trim().toUpperCase();
+            const entrada = Number(item.ENTRADA || 0).toFixed(2);
+            const sl = Number(item.SL || 0).toFixed(2);
+            const tp = Number(item.TP || 0).toFixed(2);
+            const setup = String(item.SETUP || '').trim().toLowerCase();
+            const key = `${activo}___${entrada}___${sl}___${tp}___${setup}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push({ item, index });
+          });
+
+          const deduplicated = [];
+          groups.forEach((group) => {
+            if (group.length === 1) {
+              deduplicated.push(group[0].item);
+            } else {
+              const imgCandidate = group.find(g => g.item.IMAGEN && String(g.item.IMAGEN).trim() !== '');
+              const bestImg = imgCandidate ? imgCandidate.item.IMAGEN : '';
+              const latest = group[group.length - 1].item;
+              deduplicated.push({
+                ...latest,
+                IMAGEN: latest.IMAGEN && String(latest.IMAGEN).trim() !== '' ? latest.IMAGEN : bestImg
+              });
+            }
+          });
+
+          setTrades(deduplicated.map(parseTrade));
         } catch (err) {
           setError(err.message || 'Error al conectar');
         } finally {

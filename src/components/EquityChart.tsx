@@ -130,28 +130,28 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
   }, [minVal, maxVal]);
 
   return (
-    <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-2xl relative mb-8">
+    <div className="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-white/[0.08] shadow-2xl relative mb-6 sm:mb-8 overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="font-heading text-lg sm:text-xl font-bold text-white tracking-tight">
+            <h2 className="font-heading text-base sm:text-xl font-bold text-white tracking-tight">
               Curva de Equity Acumulado
             </h2>
-            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#E0B341]/10 text-[#E0B341] border border-[#E0B341]/20">
-              Gold Growth Curve
+            <span className="text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#E0B341]/10 text-[#E0B341] border border-[#E0B341]/20">
+              Curva de Crecimiento
             </span>
           </div>
-          <p className="text-xs text-neutral-400 mt-1">
-            Evolución neta de las operaciones acumuladas ordenadas cronológicamente
+          <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5 sm:mt-1">
+            Evolución neta acumulada de las operaciones
           </p>
         </div>
 
         {/* Current Active Equity display */}
-        <div className="flex items-center gap-4 bg-white/[0.03] px-4 py-2 rounded-2xl border border-white/[0.06] shrink-0">
+        <div className="flex items-center gap-3 bg-white/[0.03] px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl border border-white/[0.06] self-start sm:self-auto shrink-0">
           <div>
-            <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Equity</span>
-            <span className={`font-heading text-lg font-bold tabular-nums ${
+            <span className="text-[9px] sm:text-[10px] text-neutral-400 uppercase tracking-wider block">Equity Actual</span>
+            <span className={`font-heading text-base sm:text-lg font-bold tabular-nums ${
               !hasData
                 ? 'text-neutral-300'
                 : (activePoint && activePoint.data.equity >= 0)
@@ -353,9 +353,9 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
         {/* Hover Tooltip Overlay */}
         {hoveredIndex !== null && activePoint && activePoint.data.tradeMoney !== undefined && (
           <div
-            className="absolute z-20 pointer-events-none transition-all duration-75"
+            className="absolute z-20 pointer-events-none transition-all duration-75 max-w-[90vw]"
             style={{
-              left: `${(activePoint.x / width) * 100}%`,
+              left: `${Math.max(16, Math.min(84, (activePoint.x / width) * 100))}%`,
               top: `${Math.max(10, (activePoint.y / height) * 100 - 35)}%`,
               transform: 'translate(-50%, -100%)'
             }}
