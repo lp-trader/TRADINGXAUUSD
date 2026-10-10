@@ -27,7 +27,7 @@ export interface Trade {
   money: number; // positive = win, negative = loss
   setup: string;
   sesion: 'Asia' | 'Londres' | 'Nueva York' | string;
-  emotion: 'Calmado' | 'Confiado' | 'Ansioso' | 'FOMO' | 'Revancha' | string;
+  emotion: 'Calmado' | 'Confiado' | 'Ansioso' | 'FOMO' | 'Revancha' | 'MIEDO/DUDA' | string;
   leccion: string;
   imagen: string; // Google Drive ID
   imageUrl: string; // full drive thumbnail URL or fallback

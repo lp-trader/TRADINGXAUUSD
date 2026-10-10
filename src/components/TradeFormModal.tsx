@@ -48,7 +48,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   const [money, setMoney] = useState<string>('');
   const [setup, setSetup] = useState('');
   const [sesion, setSesion] = useState<'Asia' | 'Londres' | 'Nueva York' | string>('Nueva York');
-  const [emotion, setEmotion] = useState<'Calmado' | 'Confiado' | 'Ansioso' | 'FOMO' | 'Revancha' | string>('Calmado');
+  const [emotion, setEmotion] = useState<'Calmado' | 'Confiado' | 'Ansioso' | 'FOMO' | 'Revancha' | 'MIEDO/DUDA' | string>('Calmado');
   const [leccion, setLeccion] = useState('');
 
   // Image state
@@ -583,6 +583,10 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                 <option value="Ansioso" className="bg-[#10141D]">Ansioso</option>
                 <option value="FOMO" className="bg-[#10141D]">FOMO</option>
                 <option value="Revancha" className="bg-[#10141D]">Revancha</option>
+                <option value="MIEDO/DUDA" className="bg-[#10141D]">MIEDO/DUDA</option>
+                {!['Calmado', 'Confiado', 'Ansioso', 'FOMO', 'Revancha', 'MIEDO/DUDA'].includes(emotion) && emotion && (
+                  <option value={emotion} className="bg-[#10141D]">{emotion}</option>
+                )}
               </select>
             </div>
           </div>
