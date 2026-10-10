@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Trade } from '../types/trade';
-import { ArrowUpRight, ArrowDownRight, Search, Sparkles, Filter, Image as ImageIcon, Edit3 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Search, Sparkles, Filter, Image as ImageIcon, Edit3, Trash2 } from 'lucide-react';
 
 interface TradeGalleryProps {
   trades: Trade[];
   onSelectTrade: (trade: Trade) => void;
   onOpenNewTrade?: () => void;
   onEditTrade?: (trade: Trade) => void;
+  onDeleteTrade?: (trade: Trade) => void;
   isOwner: boolean;
 }
 
@@ -15,6 +16,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
   onSelectTrade,
   onOpenNewTrade,
   onEditTrade,
+  onDeleteTrade,
   isOwner
 }) => {
   const [filterResult, setFilterResult] = useState<'ALL' | 'WIN' | 'LOSS'>('ALL');
@@ -271,7 +273,7 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                       Emoción: <strong className="text-neutral-200">{trade.emotion || '—'}</strong>
                     </span>
 
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       {isOwner && onEditTrade && (
                         <button
                           type="button"
@@ -284,6 +286,20 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                         >
                           <Edit3 className="w-3 h-3" />
                           <span>Editar</span>
+                        </button>
+                      )}
+
+                      {isOwner && onDeleteTrade && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteTrade(trade);
+                          }}
+                          className="p-1 rounded-lg bg-[#FF6B60]/10 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 text-[11px] font-medium flex items-center justify-center transition-colors"
+                          title="Eliminar trade"
+                        >
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       )}
 

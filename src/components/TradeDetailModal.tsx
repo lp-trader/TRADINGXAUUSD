@@ -13,13 +13,15 @@ import {
   BookOpen, 
   ExternalLink, 
   ShieldCheck,
-  Edit3
+  Edit3,
+  Trash2
 } from 'lucide-react';
 
 interface TradeDetailModalProps {
   trade: Trade | null;
   onClose: () => void;
   onEditTrade?: (trade: Trade) => void;
+  onDeleteTrade?: (trade: Trade) => void;
   isOwner?: boolean;
 }
 
@@ -27,6 +29,7 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
   trade, 
   onClose,
   onEditTrade,
+  onDeleteTrade,
   isOwner = false 
 }) => {
   const [isZoomed, setIsZoomed] = useState(false);
@@ -126,6 +129,19 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>Editar</span>
+              </button>
+            )}
+
+            {isOwner && onDeleteTrade && (
+              <button
+                onClick={() => {
+                  onDeleteTrade(trade);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#FF6B60]/15 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 text-xs font-semibold transition-all flex items-center gap-1.5"
+                title="Eliminar este trade"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar</span>
               </button>
             )}
 
@@ -362,6 +378,18 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
             {trade.fecha || '—'} · {trade.activo || '—'}
           </span>
           <div className="flex items-center gap-2">
+            {isOwner && onDeleteTrade && (
+              <button
+                onClick={() => {
+                  onDeleteTrade(trade);
+                }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-[#FF6B60]/15 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 transition-all flex items-center gap-1.5"
+                title="Eliminar este trade"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar Trade</span>
+              </button>
+            )}
             {isOwner && onEditTrade && (
               <button
                 onClick={() => {

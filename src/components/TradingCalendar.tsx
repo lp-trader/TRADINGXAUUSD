@@ -13,13 +13,15 @@ import {
   Maximize2, 
   Image as ImageIcon,
   Edit3,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 
 interface TradingCalendarProps {
   trades: Trade[];
   onSelectTrade: (trade: Trade) => void;
   onEditTrade?: (trade: Trade) => void;
+  onDeleteTrade?: (trade: Trade) => void;
   isOwner?: boolean;
 }
 
@@ -64,6 +66,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
   trades, 
   onSelectTrade, 
   onEditTrade, 
+  onDeleteTrade,
   isOwner = false 
 }) => {
   // Today's date reference
@@ -762,6 +765,21 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                           >
                             <Edit3 className="w-3 h-3" />
                             <span>Editar</span>
+                          </button>
+                        )}
+
+                        {isOwner && onDeleteTrade && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDayModal(null);
+                              onDeleteTrade(trade);
+                            }}
+                            className="p-1.5 rounded-lg bg-[#FF6B60]/10 hover:bg-[#FF6B60]/25 text-[#FF6B60] border border-[#FF6B60]/30 text-[11px] font-medium flex items-center justify-center transition-colors"
+                            title="Eliminar trade"
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         )}
 

@@ -8,7 +8,8 @@ import { Trade } from './types/trade';
 import { 
   fetchTradesFromAppsScript, 
   getStoredOwnerKey, 
-  setStoredOwnerKey 
+  setStoredOwnerKey,
+  deleteTradeInAppsScript
 } from './services/api';
 import { 
   calculateDashboardMetrics, 
@@ -29,7 +30,7 @@ import { TradeDetailModal } from './components/TradeDetailModal';
 import { TradeFormModal } from './components/TradeFormModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
 
-import { Loader2, AlertCircle, RefreshCw, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, PlusCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
 export default function App() {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -43,6 +44,8 @@ export default function App() {
   // Modals
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [tradeToEdit, setTradeToEdit] = useState<Trade | null>(null);
+  const [tradeToDelete, setTradeToDelete] = useState<Trade | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [isNewTradeOpen, setIsNewTradeOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -127,6 +130,50 @@ export default function App() {
     loadTrades();
   };
 
+  const handleRequestDeleteTrade = (trade: Trade) => {
+    if (!ownerKey) {
+      showToast('Debes activar el Modo Dueño para eliminar trades.');
+      return;
+    }
+    setTradeToDelete(trade);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!tradeToDelete) return;
+    if (!ownerKey) {
+      showToast('Debes activar el Modo Dueño para eliminar trades.');
+      setTradeToDelete(null);
+      return;
+    }
+
+    const targetId = tradeToDelete.id;
+    setIsDeleting(true);
+
+    try {
+      await deleteTradeInAppsScript(targetId, ownerKey);
+
+      // Instantly filter out trade from state
+      setTrades((prev) => prev.filter((t) => t.id !== targetId));
+
+      // Close open modals if referencing the deleted trade
+      if (selectedTrade?.id === targetId) {
+        setSelectedTrade(null);
+      }
+      if (tradeToEdit?.id === targetId) {
+        setTradeToEdit(null);
+        setIsNewTradeOpen(false);
+      }
+
+      setTradeToDelete(null);
+      showToast('Trade eliminado permanentemente del diario.');
+    } catch (err: any) {
+      console.error('Error al eliminar trade:', err);
+      showToast('Error al eliminar el trade: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0B0D12] text-[#EDEDED] flex flex-col font-sans selection:bg-[#E0B341]/30 selection:text-[#E0B341]">
       
@@ -204,6 +251,7 @@ export default function App() {
               trades={trades}
               onSelectTrade={setSelectedTrade}
               onEditTrade={handleOpenEditTrade}
+              onDeleteTrade={handleRequestDeleteTrade}
               isOwner={isOwner}
             />
 
@@ -223,6 +271,7 @@ export default function App() {
               onSelectTrade={setSelectedTrade}
               onOpenNewTrade={handleOpenNewTrade}
               onEditTrade={handleOpenEditTrade}
+              onDeleteTrade={handleRequestDeleteTrade}
               isOwner={isOwner}
             />
 
@@ -236,6 +285,7 @@ export default function App() {
         trade={selectedTrade}
         onClose={() => setSelectedTrade(null)}
         onEditTrade={handleOpenEditTrade}
+        onDeleteTrade={handleRequestDeleteTrade}
         isOwner={isOwner}
       />
 
@@ -246,6 +296,7 @@ export default function App() {
         ownerKey={ownerKey}
         tradeToEdit={tradeToEdit}
         onSuccess={handleTradeSavedSuccess}
+        onDeleteTrade={handleRequestDeleteTrade}
       />
 
       {/* Owner Auth Modal */}
@@ -255,6 +306,68 @@ export default function App() {
         onSuccess={handleOwnerSuccess}
         currentKey={ownerKey}
       />
+
+      {/* Delete Confirmation Modal */}
+      {tradeToDelete && (
+        <div 
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => !isDeleting && setTradeToDelete(null)}
+        >
+          <div 
+            className="glass-dropdown relative w-full max-w-sm rounded-3xl border border-[#FF6B60]/30 shadow-2xl p-6 overflow-hidden space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-[#FF6B60]/15 border border-[#FF6B60]/30 text-[#FF6B60] flex items-center justify-center mx-auto shadow-lg shadow-[#FF6B60]/10">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center">
+              <h3 className="font-heading text-lg font-bold text-white">
+                Eliminar Trade
+              </h3>
+              <p className="text-xs text-neutral-400 mt-1.5 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar este trade del diario?
+              </p>
+              <div className="mt-2.5 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] font-mono text-xs text-neutral-300 flex items-center justify-between">
+                <span className="font-semibold text-white">{tradeToDelete.activo}</span>
+                <span className="text-neutral-400">{tradeToDelete.fecha}</span>
+                <span className={`font-bold ${tradeToDelete.money >= 0 ? 'text-[#34C97A]' : 'text-[#FF6B60]'}`}>
+                  {tradeToDelete.money >= 0 ? '+' : ''}${Number(tradeToDelete.money || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <p className="text-[11px] text-[#FF6B60]/80 mt-2">
+                Esta acción se guardará y no se puede deshacer.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setTradeToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-neutral-300 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-[#FF6B60] hover:bg-[#FF6B60]/90 text-white transition-all shadow-lg shadow-[#FF6B60]/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <span>Sí, Eliminar</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer (Mandatory Disclaimer) */}
       <footer className="border-t border-white/[0.06] bg-[#0B0D12] py-8 text-neutral-500 text-xs mt-12">

@@ -15,7 +15,8 @@ import {
   TrendingDown,
   Target,
   ShieldAlert,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Trash2
 } from 'lucide-react';
 
 interface TradeFormModalProps {
@@ -24,6 +25,7 @@ interface TradeFormModalProps {
   ownerKey: string;
   tradeToEdit?: Trade | null;
   onSuccess: () => void;
+  onDeleteTrade?: (trade: Trade) => void;
 }
 
 export const TradeFormModal: React.FC<TradeFormModalProps> = ({
@@ -31,7 +33,8 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   onClose,
   ownerKey,
   tradeToEdit = null,
-  onSuccess
+  onSuccess,
+  onDeleteTrade
 }) => {
   const isEditing = Boolean(tradeToEdit);
 
@@ -644,29 +647,48 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-[#E0B341] to-[#C99C2E] text-[#0B0D12] hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#E0B341]/20 disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0B0D12]" />
-                  <span>{isEditing ? 'Actualizando...' : 'Guardando...'}</span>
-                </>
-              ) : (
-                <span>{isEditing ? 'Guardar Cambios' : 'Guardar Trade'}</span>
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/[0.08]">
+            <div>
+              {isEditing && tradeToEdit && onDeleteTrade && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDeleteTrade(tradeToEdit);
+                  }}
+                  disabled={isSubmitting}
+                  className="px-3.5 py-2.5 text-xs font-semibold rounded-xl bg-[#FF6B60]/10 hover:bg-[#FF6B60]/20 text-[#FF6B60] border border-[#FF6B60]/30 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  title="Eliminar este trade permanentemente"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar Trade</span>
+                </button>
               )}
-            </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-[#E0B341] to-[#C99C2E] text-[#0B0D12] hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#E0B341]/20 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0B0D12]" />
+                    <span>{isEditing ? 'Actualizando...' : 'Guardando...'}</span>
+                  </>
+                ) : (
+                  <span>{isEditing ? 'Guardar Cambios' : 'Guardar Trade'}</span>
+                )}
+              </button>
+            </div>
           </div>
 
         </form>

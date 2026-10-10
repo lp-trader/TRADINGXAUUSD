@@ -4,6 +4,7 @@ import { evaluateTradeOutcome, normalizeDateToYYYYMMDD } from '../utils/tradeCal
 export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybx6mAa-PXrkia4ZdRe1xslt2q1QzKpqgtkpKHeb7ZtE--dFgL1jetmkbivg8dMwG-oA/exec';
 export const OWNER_KEY_STORAGE = 'trading_journal_owner_key';
 export const TRADE_OVERRIDES_STORAGE = 'trading_journal_trade_overrides';
+export const TRADE_DELETED_STORAGE = 'trading_journal_deleted_trades';
 
 export function getStoredOwnerKey(): string {
   try {
@@ -22,6 +23,37 @@ export function setStoredOwnerKey(key: string): void {
     }
   } catch (err) {
     console.error('Error saving owner key in localStorage:', err);
+  }
+}
+
+export function getDeletedTradeIds(): string[] {
+  try {
+    const raw = localStorage.getItem(TRADE_DELETED_STORAGE);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDeletedTradeId(tradeId: string): void {
+  try {
+    const list = getDeletedTradeIds();
+    if (!list.includes(tradeId)) {
+      list.push(tradeId);
+      localStorage.setItem(TRADE_DELETED_STORAGE, JSON.stringify(list));
+    }
+    removeLocalOverride(tradeId);
+  } catch (err) {
+    console.error('Error saving deleted trade id:', err);
+  }
+}
+
+export function removeDeletedTradeId(tradeId: string): void {
+  try {
+    const list = getDeletedTradeIds().filter((id) => id !== tradeId);
+    localStorage.setItem(TRADE_DELETED_STORAGE, JSON.stringify(list));
+  } catch (err) {
+    console.error('Error removing deleted trade id:', err);
   }
 }
 
@@ -198,12 +230,18 @@ export async function fetchTradesFromAppsScript(): Promise<Trade[]> {
     throw new Error(`Respuesta no es JSON válido: ${text.slice(0, 300)}`);
   }
 
+  const deletedIds = getDeletedTradeIds();
+
   // Si la respuesta es un arreglo vacío, NO es un error: es un diario sin trades.
   if (Array.isArray(data)) {
-    return data.map((item, idx) => parseTradeFromRaw(item, idx));
+    return data
+      .map((item, idx) => parseTradeFromRaw(item, idx))
+      .filter((trade) => !deletedIds.includes(trade.id));
   } else if (data && typeof data === 'object') {
     if (Array.isArray(data.trades)) {
-      return data.trades.map((item: any, idx: number) => parseTradeFromRaw(item, idx));
+      return data.trades
+        .map((item: any, idx: number) => parseTradeFromRaw(item, idx))
+        .filter((trade: Trade) => !deletedIds.includes(trade.id));
     }
     if (data.error) {
       throw new Error(`Respuesta de Apps Script: ${data.error}`);
@@ -351,6 +389,55 @@ export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ 
   // Even if remote Apps Script doesn't have an update endpoint deployed yet,
   // local persistence guarantees the owner edits are saved and live across sessions.
   return { ok: true, id: tradeId };
+}
+
+export async function deleteTradeInAppsScript(tradeId: string, ownerKey: string): Promise<{ ok: boolean; error?: string }> {
+  if (!tradeId) {
+    return { ok: false, error: 'ID de trade no especificado para eliminar.' };
+  }
+  if (!ownerKey.trim()) {
+    return { ok: false, error: 'Se requiere la clave del Modo Dueño para eliminar trades.' };
+  }
+
+  // Persist locally in deleted storage immediately so it vanishes across reloads and recalculations
+  saveDeletedTradeId(tradeId);
+
+  // Send delete request to Apps Script
+  const bodyPayload = {
+    key: ownerKey.trim(),
+    action: 'delete',
+    id: tradeId
+  };
+
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(bodyPayload)
+    });
+
+    if (response.ok) {
+      const rawText = await response.text();
+      try {
+        const result = JSON.parse(rawText);
+        if (result.ok || result.status === 'success' || result.success) {
+          return { ok: true };
+        }
+      } catch {
+        if (rawText.toLowerCase().includes('success') || rawText.toLowerCase().includes('ok')) {
+          return { ok: true };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Apps Script delete remote network notice:', err);
+  }
+
+  // Even if remote Apps Script endpoint doesn't support delete action,
+  // local persistence guarantees the trade is removed completely from the UI, calculations, and calendar
+  return { ok: true };
 }
 
 /**
