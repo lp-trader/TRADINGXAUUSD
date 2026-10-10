@@ -21,6 +21,7 @@ import {
 // Components
 import { Header } from './components/Header';
 import { HeroStats } from './components/HeroStats';
+import { TradingCalendar } from './components/TradingCalendar';
 import { EquityChart } from './components/EquityChart';
 import { MetricsBreakdown } from './components/MetricsBreakdown';
 import { TradeGallery } from './components/TradeGallery';
@@ -173,6 +174,12 @@ export default function App() {
             
             {/* 1. Hero + Dashboard Metrics */}
             <HeroStats metrics={metrics} />
+
+            {/* 1.5. Calendario de Resultados */}
+            <TradingCalendar
+              trades={trades}
+              onSelectTrade={setSelectedTrade}
+            />
 
             {/* 2. Equity Curve */}
             <EquityChart equityPoints={equityPoints} />

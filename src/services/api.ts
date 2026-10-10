@@ -75,9 +75,24 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     }
   }
 
+  let fecha = '';
+  if (raw.FECHA) {
+    const rawFechaStr = String(raw.FECHA).trim();
+    // Handles ISO strings like "2026-10-01T04:00:00.000Z", "2026-10-01 04:00:00", or "2026-10-01"
+    const dateOnly = rawFechaStr.split('T')[0].split(' ')[0];
+    const parts = dateOnly.split(/[-/]/);
+    if (parts.length === 3) {
+      fecha = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    } else {
+      fecha = dateOnly;
+    }
+  } else {
+    fecha = new Date().toISOString().split('T')[0];
+  }
+
   return {
     id: String(raw.ID || `T-${fallbackIndex + 1}`),
-    fecha: String(raw.FECHA || new Date().toISOString().split('T')[0]),
+    fecha,
     activo: String(raw.ACTIVO || 'XAU/USD').toUpperCase(),
     direccion,
     entrada,

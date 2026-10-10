@@ -113,9 +113,21 @@
       if (rawImg) {
         imageUrl = rawImg.startsWith('http') ? rawImg : `https://drive.google.com/thumbnail?id=${encodeURIComponent(rawImg)}&sz=w1600`;
       }
+      let fecha = '';
+      if (raw.FECHA) {
+        const rawFechaStr = String(raw.FECHA).trim();
+        const dateOnly = rawFechaStr.split('T')[0].split(' ')[0];
+        const parts = dateOnly.split(/[-/]/);
+        if (parts.length === 3) {
+          fecha = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        } else {
+          fecha = dateOnly;
+        }
+      }
+
       return {
         id: String(raw.ID || `T-${idx + 1}`),
-        fecha: String(raw.FECHA || ''),
+        fecha,
         activo: String(raw.ACTIVO || 'XAU/USD').toUpperCase(),
         entrada, salida, sl, tp, money,
         setup: String(raw.SETUP || 'General'),
@@ -335,6 +347,16 @@
                     <span className="text-[11px] text-neutral-400 block">Trades Totales</span>
                     <span className="font-heading text-xl font-bold text-white tabular-nums">{metrics.total}</span>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Calendario de Resultados */}
+            <div className="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-heading text-lg sm:text-xl font-bold text-white">Calendario de Resultados</h3>
+                  <p className="text-xs text-neutral-400 mt-0.5">Vista diaria de operaciones agrupadas por fecha</p>
                 </div>
               </div>
             </div>
