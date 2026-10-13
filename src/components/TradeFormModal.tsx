@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trade, TradePayload } from '../types/trade';
 import { postTradeToAppsScript, updateTradeInAppsScript, resizeImageToMax1600 } from '../services/api';
-import { evaluateTradeOutcome, normalizeDateToYYYYMMDD } from '../utils/tradeCalculation';
+import { evaluateTradeOutcome, normalizeDateToYYYYMMDD, parseNumero, formatPrice } from '../utils/tradeCalculation';
 import { 
   X, 
   Upload, 
@@ -109,26 +109,36 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   }, [isOpen, tradeToEdit]);
 
   // Live evaluated outcome calculation (all hooks and calculations kept before conditional return)
-  const numEntrada = parseFloat(entrada);
-  const numSalida = salida.trim() !== '' ? parseFloat(salida) : null;
-  const numSl = parseFloat(sl);
-  const numTp = parseFloat(tp);
-  const numMoney = parseFloat(money);
+  // Live evaluated outcome calculation using parseNumero
+  const numEntrada = parseNumero(entrada);
+  const numSalida = salida.trim() !== '' ? parseNumero(salida) : null;
+  const numSl = parseNumero(sl);
+  const numTp = parseNumero(tp);
+  const numMoney = parseNumero(money);
 
   const liveEvaluation = useMemo(() => {
     if (!isOpen) return null;
-    if (isNaN(numEntrada) || isNaN(numSl) || isNaN(numTp)) {
+    if (numEntrada === null || numSl === null || numTp === null) {
       return null;
     }
     return evaluateTradeOutcome({
       direccion,
       entrada: numEntrada,
-      salida: numSalida !== null && !isNaN(numSalida) ? numSalida : null,
+      salida: numSalida,
       sl: numSl,
       tp: numTp,
-      money: !isNaN(numMoney) ? numMoney : null
+      money: numMoney
     });
   }, [isOpen, direccion, numEntrada, numSalida, numSl, numTp, numMoney]);
+
+  // Normalizes input on blur to standard dot format e.g. "2,64183" -> "2.64183"
+  const handleNormalizeOnBlur = (val: string, setter: (normalized: string) => void) => {
+    if (!val || !val.trim()) return;
+    const parsed = parseNumero(val);
+    if (parsed !== null) {
+      setter(String(parsed));
+    }
+  };
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -154,29 +164,33 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
 
   // Quick Action: Match Exit to TP
   const handleSetExitToTP = () => {
-    if (!isNaN(numTp)) {
+    if (numTp !== null) {
       setSalida(String(numTp));
       // If money was negative or empty, make positive
-      if (!isNaN(numMoney)) {
-        setMoney(String(Math.abs(numMoney)));
+      if (numMoney !== null) {
+        setMoney(String(Math.abs(numMoney) || 100));
+      } else {
+        setMoney('100');
       }
     }
   };
 
   // Quick Action: Match Exit to SL
   const handleSetExitToSL = () => {
-    if (!isNaN(numSl)) {
+    if (numSl !== null) {
       setSalida(String(numSl));
       // If money was positive or empty, make negative
-      if (!isNaN(numMoney)) {
-        setMoney(String(-Math.abs(numMoney)));
+      if (numMoney !== null) {
+        setMoney(String(-(Math.abs(numMoney) || 100)));
+      } else {
+        setMoney('-100');
       }
     }
   };
 
   // Quick Action: Match Exit to Entrada (Breakeven)
   const handleSetExitToBE = () => {
-    if (!isNaN(numEntrada)) {
+    if (numEntrada !== null) {
       setSalida(String(numEntrada));
       setMoney('0');
     }
@@ -189,7 +203,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       setMoney('0');
       return;
     }
-    const currentAbs = !isNaN(numMoney) && Math.abs(numMoney) > 0 ? Math.abs(numMoney) : 100;
+    const currentAbs = numMoney !== null && Math.abs(numMoney) > 0 ? Math.abs(numMoney) : 100;
     if (liveEvaluation.outcome === 'WIN') {
       setMoney(String(currentAbs));
     } else if (liveEvaluation.outcome === 'LOSS') {
@@ -207,13 +221,19 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       return;
     }
 
-    if (isNaN(numEntrada) || isNaN(numSl) || isNaN(numTp)) {
+    const finalEntrada = parseNumero(entrada);
+    const finalSl = parseNumero(sl);
+    const finalTp = parseNumero(tp);
+    const finalSalida = salida.trim() !== '' ? parseNumero(salida) : null;
+    const rawMoneyParsed = parseNumero(money);
+
+    if (finalEntrada === null || finalSl === null || finalTp === null) {
       setErrorMessage('Por favor ingresa números válidos para Entrada, SL y TP.');
       return;
     }
 
     // Auto-align money sign to ensure no accidental positive money for losing trades
-    let finalMoney = !isNaN(numMoney) ? numMoney : 0;
+    let finalMoney = rawMoneyParsed !== null ? rawMoneyParsed : 0;
     if (liveEvaluation) {
       if (liveEvaluation.outcome === 'LOSS') {
         finalMoney = -Math.abs(finalMoney);
@@ -250,10 +270,10 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
           FECHA: fecha,
           ACTIVO: activo.toUpperCase().trim() || 'XAU/USD',
           DIRECCION: direccion,
-          ENTRADA: numEntrada,
-          SALIDA: numSalida !== null && !isNaN(numSalida) ? numSalida : numEntrada,
-          SL: numSl,
-          TP: numTp,
+          ENTRADA: finalEntrada,
+          SALIDA: finalSalida !== null ? finalSalida : finalEntrada,
+          SL: finalSl,
+          TP: finalTp,
           MONEY: finalMoney,
           SETUP: setup.trim() || 'General',
           SESION: sesion,
@@ -429,11 +449,12 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               <div>
                 <label className="text-[11px] text-neutral-400 block mb-1">4. Entrada</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={entrada}
                   onChange={(e) => setEntrada(e.target.value)}
-                  placeholder="4152.87"
+                  onBlur={() => handleNormalizeOnBlur(entrada, setEntrada)}
+                  placeholder="2.62792"
                   className="w-full bg-white/[0.04] text-sm text-white px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
                   required
                 />
@@ -442,11 +463,12 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               <div>
                 <label className="text-[11px] text-[#E0B341] block mb-1 font-medium">5. Salida</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={salida}
                   onChange={(e) => setSalida(e.target.value)}
-                  placeholder="4162.49"
+                  onBlur={() => handleNormalizeOnBlur(salida, setSalida)}
+                  placeholder="2.64183"
                   className="w-full bg-white/[0.04] text-sm text-[#E0B341] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
                   required
                 />
@@ -455,11 +477,12 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               <div>
                 <label className="text-[11px] text-[#FF6B60] block mb-1 font-medium">6. Stop Loss (SL)</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={sl}
                   onChange={(e) => setSl(e.target.value)}
-                  placeholder="4162.49"
+                  onBlur={() => handleNormalizeOnBlur(sl, setSl)}
+                  placeholder="2.62329"
                   className="w-full bg-white/[0.04] text-sm text-[#FF6B60] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#FF6B60]"
                   required
                 />
@@ -468,11 +491,12 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               <div>
                 <label className="text-[11px] text-[#34C97A] block mb-1 font-medium">7. Take Profit (TP)</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={tp}
                   onChange={(e) => setTp(e.target.value)}
-                  placeholder="4124.12"
+                  onBlur={() => handleNormalizeOnBlur(tp, setTp)}
+                  placeholder="2.64183"
                   className="w-full bg-white/[0.04] text-sm text-[#34C97A] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#34C97A]"
                   required
                 />
@@ -493,17 +517,18 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   )}
                 </div>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={money}
                   onChange={(e) => setMoney(e.target.value)}
+                  onBlur={() => handleNormalizeOnBlur(money, setMoney)}
                   placeholder="+300 o -100"
                   className={`w-full bg-white/[0.04] text-sm font-bold px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none ${
-                    !money || isNaN(parseFloat(money)) 
+                    numMoney === null
                       ? 'text-white' 
-                      : parseFloat(money) > 0 
+                      : numMoney > 0 
                         ? 'text-[#34C97A]' 
-                        : parseFloat(money) < 0 
+                        : numMoney < 0 
                           ? 'text-[#FF6B60]' 
                           : 'text-neutral-400'
                   }`}

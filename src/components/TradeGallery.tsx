@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Trade } from '../types/trade';
+import { parseNumero, formatPrice } from '../utils/tradeCalculation';
 import { ArrowUpRight, ArrowDownRight, Search, Sparkles, Filter, Image as ImageIcon, Edit3, Trash2 } from 'lucide-react';
 
 interface TradeGalleryProps {
@@ -27,8 +28,9 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredTrades = trades.filter((trade) => {
-    if (filterResult === 'WIN' && trade.money <= 0) return false;
-    if (filterResult === 'LOSS' && trade.money >= 0) return false;
+    const moneyVal = parseNumero(trade.money) ?? 0;
+    if (filterResult === 'WIN' && moneyVal <= 0) return false;
+    if (filterResult === 'LOSS' && moneyVal >= 0) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchSetup = trade.setup.toLowerCase().includes(q);
@@ -156,8 +158,11 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredTrades.map((trade) => {
-            const isWin = trade.money >= 0;
+            const tradeMoney = parseNumero(trade.money) ?? 0;
+            const isWin = tradeMoney >= 0;
             const isBuy = trade.direccion === 'Buy';
+            const rRealNum = parseNumero(trade.rReal);
+            const rrPlanNum = parseNumero(trade.rrPlanificado);
 
             return (
               <div
@@ -227,21 +232,21 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                       <div className={`font-heading text-lg font-bold tabular-nums leading-none ${
                         isWin ? 'text-[#34C97A]' : 'text-[#FF6B60]'
                       }`}>
-                        {trade.money != null && !isNaN(trade.money)
-                          ? `${isWin ? '+' : ''}$${trade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                        {parseNumero(trade.money) !== null
+                          ? `${isWin ? '+' : ''}$${tradeMoney.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                           : '—'}
                       </div>
                       <div className="flex items-center justify-end gap-1.5 mt-1">
-                        {trade.rReal != null && !isNaN(trade.rReal) ? (
+                        {rRealNum !== null ? (
                           <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                            trade.rReal >= 0 ? 'bg-[#34C97A]/25 text-[#34C97A]' : 'bg-[#FF6B60]/25 text-[#FF6B60]'
+                            rRealNum >= 0 ? 'bg-[#34C97A]/25 text-[#34C97A]' : 'bg-[#FF6B60]/25 text-[#FF6B60]'
                           }`}>
-                            {trade.rReal >= 0 ? '+' : ''}{trade.rReal.toFixed(2)}R
+                            {rRealNum >= 0 ? '+' : ''}{rRealNum.toFixed(2)}R
                           </span>
                         ) : null}
-                        {trade.rrPlanificado > 0 && !isNaN(trade.rrPlanificado) && (
+                        {rrPlanNum !== null && rrPlanNum > 0 && (
                           <span className="text-[10px] font-mono text-neutral-400">
-                            1:{trade.rrPlanificado.toFixed(2)} R:R
+                            1:{rrPlanNum.toFixed(2)} R:R
                           </span>
                         )}
                       </div>
@@ -253,13 +258,13 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-2 bg-[#0B0D12]/40">
                   <div className="flex items-center justify-between text-xs text-neutral-400">
                     <div className="flex items-center gap-1.5 font-mono flex-wrap">
-                      <span>In: {trade.entrada != null && !isNaN(trade.entrada) ? trade.entrada.toFixed(2) : '—'}</span>
+                      <span>In: {formatPrice(trade.entrada)}</span>
                       <span>·</span>
-                      <span className="text-[#E0B341]">Out: {trade.salida != null && !isNaN(trade.salida) ? trade.salida.toFixed(2) : '—'}</span>
+                      <span className="text-[#E0B341]">Out: {formatPrice(trade.salida)}</span>
                       <span>·</span>
-                      <span className="text-[#FF6B60]">SL: {trade.sl != null && !isNaN(trade.sl) ? trade.sl.toFixed(2) : '—'}</span>
+                      <span className="text-[#FF6B60]">SL: {formatPrice(trade.sl)}</span>
                       <span>·</span>
-                      <span className="text-[#34C97A]">TP: {trade.tp != null && !isNaN(trade.tp) ? trade.tp.toFixed(2) : '—'}</span>
+                      <span className="text-[#34C97A]">TP: {formatPrice(trade.tp)}</span>
                     </div>
                   </div>
 

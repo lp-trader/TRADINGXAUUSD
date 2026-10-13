@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Trade } from '../types/trade';
-import { normalizeDateToYYYYMMDD } from '../utils/tradeCalculation';
+import { normalizeDateToYYYYMMDD, parseNumero, formatPrice } from '../utils/tradeCalculation';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -142,7 +142,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
     trades.forEach((trade) => {
       if (!trade.fecha) return;
       const key = normalizeDateToYYYYMMDD(trade.fecha);
-      const money = Number(trade.money) || 0;
+      const money = parseNumero(trade.money) ?? 0;
 
       const current = map.get(key) || { trades: [], netMoney: 0 };
       current.trades.push(trade);
@@ -993,8 +993,10 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
             {/* List of Trades for that Day */}
             <div className="p-6 overflow-y-auto space-y-3">
               {activeDayModal.trades.map((trade) => {
-                const isWin = trade.money >= 0;
+                const tradeMoney = parseNumero(trade.money) ?? 0;
+                const isWin = tradeMoney >= 0;
                 const isBuy = trade.direccion === 'Buy';
+                const rRealNum = parseNumero(trade.rReal);
 
                 return (
                   <div
@@ -1043,9 +1045,9 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
 
                         {/* Prices: In & Out */}
                         <div className="flex items-center gap-2 text-xs font-mono text-neutral-400 mt-1">
-                          <span>In: <strong className="text-white">{trade.entrada != null && !isNaN(trade.entrada) ? trade.entrada.toFixed(2) : '—'}</strong></span>
+                          <span>In: <strong className="text-white">{formatPrice(trade.entrada)}</strong></span>
                           <span>·</span>
-                          <span>Out: <strong className="text-[#E0B341]">{trade.salida != null && !isNaN(trade.salida) ? trade.salida.toFixed(2) : '—'}</strong></span>
+                          <span>Out: <strong className="text-[#E0B341]">{formatPrice(trade.salida)}</strong></span>
                           <span>·</span>
                           <span>Setup: {trade.setup || '—'}</span>
                         </div>
@@ -1062,11 +1064,11 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                               🎯 Salió en TP (Ganador)
                             </span>
                           )}
-                          {trade.rReal !== null && !isNaN(trade.rReal) && (
+                          {rRealNum !== null && (
                             <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                              trade.rReal >= 0 ? 'bg-[#34C97A]/15 text-[#34C97A]' : 'bg-[#FF6B60]/15 text-[#FF6B60]'
+                              rRealNum >= 0 ? 'bg-[#34C97A]/15 text-[#34C97A]' : 'bg-[#FF6B60]/15 text-[#FF6B60]'
                             }`}>
-                              {trade.rReal >= 0 ? '+' : ''}{trade.rReal.toFixed(2)}R
+                              {rRealNum >= 0 ? '+' : ''}{rRealNum.toFixed(2)}R
                             </span>
                           )}
                         </div>
@@ -1078,7 +1080,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                       <span className={`font-heading text-base font-bold tabular-nums ${
                         isWin ? 'text-[#34C97A]' : 'text-[#FF6B60]'
                       }`}>
-                        {trade.money != null && !isNaN(trade.money) ? `${isWin ? '+' : ''}$${trade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+                        {parseNumero(trade.money) !== null ? `${isWin ? '+' : ''}$${tradeMoney.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
                       </span>
 
                       <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trade } from '../types/trade';
+import { formatPrice, parseNumero } from '../utils/tradeCalculation';
 import { 
   X, 
   ArrowUpRight, 
@@ -50,13 +51,22 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
 
   if (!trade) return null;
 
-  const isWin = trade.money >= 0;
+  const moneyNum = parseNumero(trade.money) ?? 0;
+  const isWin = moneyNum >= 0;
   const isBuy = trade.direccion === 'Buy';
-  const hasEntrada = trade.entrada != null && !isNaN(trade.entrada);
-  const hasSl = trade.sl != null && !isNaN(trade.sl);
-  const hasTp = trade.tp != null && !isNaN(trade.tp);
-  const riskDistance = hasEntrada && hasSl ? Math.abs(trade.entrada - trade.sl) : 0;
-  const rewardDistance = hasTp && hasEntrada ? Math.abs(trade.tp - trade.entrada) : 0;
+  const entradaNum = parseNumero(trade.entrada);
+  const slNum = parseNumero(trade.sl);
+  const tpNum = parseNumero(trade.tp);
+  const salidaNum = parseNumero(trade.salida);
+  const rRealNum = parseNumero(trade.rReal);
+  const rrPlanNum = parseNumero(trade.rrPlanificado);
+
+  const hasEntrada = entradaNum !== null;
+  const hasSl = slNum !== null;
+  const hasTp = tpNum !== null;
+  const hasSalida = salidaNum !== null;
+  const riskDistance = hasEntrada && hasSl ? Math.abs(entradaNum - slNum) : 0;
+  const rewardDistance = hasTp && hasEntrada ? Math.abs(tpNum - entradaNum) : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
@@ -204,26 +214,26 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
                 <span className={`font-heading text-3xl sm:text-4xl font-bold tabular-nums ${
                   isWin ? 'text-[#34C97A]' : 'text-[#FF6B60]'
                 }`}>
-                  {trade.money != null && !isNaN(trade.money)
-                    ? `${isWin ? '+' : ''}$${trade.money.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                  {parseNumero(trade.money) !== null
+                    ? `${isWin ? '+' : ''}$${moneyNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                     : '—'}
                 </span>
-                {trade.rReal != null && !isNaN(trade.rReal) ? (
+                {rRealNum !== null ? (
                   <span className={`font-mono text-sm font-semibold px-2.5 py-1 rounded-lg ${
-                    trade.rReal >= 0
+                    rRealNum >= 0
                       ? 'bg-[#34C97A]/15 text-[#34C97A] border border-[#34C97A]/30'
                       : 'bg-[#FF6B60]/15 text-[#FF6B60] border border-[#FF6B60]/30'
                   }`}>
-                    R Real: {trade.rReal >= 0 ? '+' : ''}{trade.rReal.toFixed(2)}R
+                    R Real: {rRealNum >= 0 ? '+' : ''}{rRealNum.toFixed(2)}R
                   </span>
                 ) : (
                   <span className="font-mono text-sm font-semibold text-neutral-400">
                     R Real: —
                   </span>
                 )}
-                {trade.rrPlanificado != null && !isNaN(trade.rrPlanificado) && trade.rrPlanificado > 0 && (
+                {rrPlanNum !== null && rrPlanNum > 0 && (
                   <span className="font-mono text-sm font-semibold text-neutral-400">
-                    Plan 1:{trade.rrPlanificado.toFixed(2)}
+                    Plan 1:{rrPlanNum.toFixed(2)}
                   </span>
                 )}
               </div>
@@ -258,7 +268,7 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                 <span className="text-[11px] text-neutral-400 block">Precio Entrada</span>
                 <span className="font-heading text-base font-bold text-white tabular-nums mt-0.5 block">
-                  {hasEntrada ? trade.entrada.toFixed(2) : '—'}
+                  {hasEntrada ? formatPrice(trade.entrada) : '—'}
                 </span>
               </div>
 
@@ -266,7 +276,7 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                 <span className="text-[11px] text-[#E0B341] block">Precio Salida</span>
                 <span className="font-heading text-base font-bold text-[#E0B341] tabular-nums mt-0.5 block">
-                  {trade.salida != null && !isNaN(trade.salida) ? trade.salida.toFixed(2) : '—'}
+                  {hasSalida ? formatPrice(trade.salida) : '—'}
                 </span>
               </div>
 
@@ -274,10 +284,10 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                 <span className="text-[11px] text-[#FF6B60] block">Stop Loss (SL)</span>
                 <span className="font-heading text-base font-bold text-[#FF6B60] tabular-nums mt-0.5 block">
-                  {hasSl ? trade.sl.toFixed(2) : '—'}
+                  {hasSl ? formatPrice(trade.sl) : '—'}
                 </span>
                 <span className="text-[10px] text-neutral-500 font-mono">
-                  {riskDistance > 0 ? `Riesgo: ${riskDistance.toFixed(2)} pts` : '—'}
+                  {riskDistance > 0 ? `Riesgo: ${formatPrice(riskDistance)} pts` : '—'}
                 </span>
               </div>
 
@@ -285,10 +295,10 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                 <span className="text-[11px] text-[#34C97A] block">Take Profit (TP)</span>
                 <span className="font-heading text-base font-bold text-[#34C97A] tabular-nums mt-0.5 block">
-                  {hasTp ? trade.tp.toFixed(2) : '—'}
+                  {hasTp ? formatPrice(trade.tp) : '—'}
                 </span>
                 <span className="text-[10px] text-neutral-500 font-mono">
-                  {rewardDistance > 0 ? `Objetivo: ${rewardDistance.toFixed(2)} pts` : '—'}
+                  {rewardDistance > 0 ? `Objetivo: ${formatPrice(rewardDistance)} pts` : '—'}
                 </span>
               </div>
 
@@ -296,13 +306,13 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                 <span className="text-[11px] text-[#E0B341] block">R Real</span>
                 <span className={`font-heading text-base font-bold tabular-nums mt-0.5 block ${
-                  trade.rReal == null || isNaN(trade.rReal)
+                  rRealNum === null
                     ? 'text-neutral-400'
-                    : trade.rReal >= 0
+                    : rRealNum >= 0
                       ? 'text-[#34C97A]'
                       : 'text-[#FF6B60]'
                 }`}>
-                  {trade.rReal != null && !isNaN(trade.rReal) ? `${trade.rReal >= 0 ? '+' : ''}${trade.rReal.toFixed(2)}R` : '—'}
+                  {rRealNum !== null ? `${rRealNum >= 0 ? '+' : ''}${rRealNum.toFixed(2)}R` : '—'}
                 </span>
                 <span className="text-[10px] text-neutral-500 font-mono">
                   (Salida-In) / |SL|
@@ -313,8 +323,8 @@ export const TradeDetailModal: React.FC<TradeDetailModalProps> = ({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                 <span className="text-[11px] text-neutral-400 block">R:R Planeado</span>
                 <span className="font-heading text-base font-bold text-neutral-300 tabular-nums mt-0.5 block">
-                  {trade.rrPlanificado != null && !isNaN(trade.rrPlanificado) && trade.rrPlanificado > 0
-                    ? `1:${trade.rrPlanificado.toFixed(2)}`
+                  {rrPlanNum !== null && rrPlanNum > 0
+                    ? `1:${rrPlanNum.toFixed(2)}`
                     : '—'}
                 </span>
                 <span className="text-[10px] text-neutral-500 font-mono">

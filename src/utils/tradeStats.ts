@@ -1,4 +1,5 @@
 import { Trade, DashboardMetrics, EquityPoint, GroupPerformance } from '../types/trade';
+import { parseNumero } from './tradeCalculation';
 
 export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
   if (!trades || trades.length === 0) {
@@ -31,7 +32,7 @@ export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
   let worstTrade: Trade | null = null;
 
   trades.forEach((trade) => {
-    const money = trade.money;
+    const money = parseNumero(trade.money) ?? 0;
     if (money > 0) {
       winCount++;
       grossProfit += money;
@@ -40,20 +41,22 @@ export function calculateDashboardMetrics(trades: Trade[]): DashboardMetrics {
       grossLoss += Math.abs(money);
     }
 
-    if (trade.rrPlanificado > 0 && isFinite(trade.rrPlanificado)) {
-      totalPlannedRR += trade.rrPlanificado;
+    const plannedRR = parseNumero(trade.rrPlanificado);
+    if (plannedRR !== null && plannedRR > 0 && isFinite(plannedRR)) {
+      totalPlannedRR += plannedRR;
       countPlannedRR++;
     }
 
-    if (trade.rReal !== null && !isNaN(trade.rReal) && isFinite(trade.rReal)) {
-      totalRealR += trade.rReal;
+    const rReal = parseNumero(trade.rReal);
+    if (rReal !== null && isFinite(rReal)) {
+      totalRealR += rReal;
       countRealR++;
     }
 
-    if (!bestTrade || money > bestTrade.money) {
+    if (!bestTrade || money > (parseNumero(bestTrade.money) ?? 0)) {
       bestTrade = trade;
     }
-    if (!worstTrade || money < worstTrade.money) {
+    if (!worstTrade || money < (parseNumero(worstTrade.money) ?? 0)) {
       worstTrade = trade;
     }
   });
@@ -93,12 +96,13 @@ export function buildEquityCurve(trades: Trade[]): EquityPoint[] {
 
   let cumulative = 0;
   return sorted.map((trade, idx) => {
-    cumulative += trade.money;
+    const money = parseNumero(trade.money) ?? 0;
+    cumulative += money;
     return {
       index: idx + 1,
       id: trade.id,
       fecha: trade.fecha,
-      tradeMoney: trade.money,
+      tradeMoney: money,
       equity: Math.round(cumulative * 100) / 100,
       trade
     };
@@ -114,13 +118,15 @@ function calculateGroupStats(
   trades.forEach((trade) => {
     const key = groupByFn(trade) || 'Otro';
     const current = map.get(key) || { count: 0, netProfit: 0, winCount: 0, totalRealR: 0, countRealR: 0 };
+    const money = parseNumero(trade.money) ?? 0;
     current.count++;
-    current.netProfit += trade.money;
-    if (trade.money > 0) {
+    current.netProfit += money;
+    if (money > 0) {
       current.winCount++;
     }
-    if (trade.rReal !== null && !isNaN(trade.rReal) && isFinite(trade.rReal)) {
-      current.totalRealR += trade.rReal;
+    const rReal = parseNumero(trade.rReal);
+    if (rReal !== null && isFinite(rReal)) {
+      current.totalRealR += rReal;
       current.countRealR++;
     }
     map.set(key, current);

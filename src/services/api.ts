@@ -1,5 +1,5 @@
 import { RawTrade, Trade, TradePayload, AppMode } from '../types/trade';
-import { evaluateTradeOutcome, normalizeDateToYYYYMMDD } from '../utils/tradeCalculation';
+import { evaluateTradeOutcome, normalizeDateToYYYYMMDD, parseNumero } from '../utils/tradeCalculation';
 
 export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybx6mAa-PXrkia4ZdRe1xslt2q1QzKpqgtkpKHeb7ZtE--dFgL1jetmkbivg8dMwG-oA/exec';
 export const OWNER_KEY_STORAGE = 'trading_journal_owner_key';
@@ -157,10 +157,11 @@ export function removeLocalOverride(tradeId: string, hoja?: string): void {
 }
 
 export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0, hoja?: string): Trade {
-  const entrada = Number(raw.ENTRADA) || 0;
-  const sl = Number(raw.SL) || 0;
-  const tp = Number(raw.TP) || 0;
-  const rawMoney = Number(raw.MONEY) || 0;
+  const entrada = parseNumero(raw.ENTRADA) ?? 0;
+  const sl = parseNumero(raw.SL) ?? 0;
+  const tp = parseNumero(raw.TP) ?? 0;
+  const rawMoney = parseNumero(raw.MONEY) ?? 0;
+  const salida = parseNumero(raw.SALIDA);
 
   // 1. DIRECCION: selector con "Buy" y "Sell". Si una fila no lo tiene, deduce por SL y ENTRADA.
   let direccion: 'Buy' | 'Sell';
@@ -173,16 +174,7 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0, hoja
     direccion = sl < entrada ? 'Buy' : 'Sell';
   }
 
-  // 2. SALIDA: precio de salida del trade
-  let salida: number | null = null;
-  if (raw.SALIDA !== undefined && raw.SALIDA !== null && String(raw.SALIDA).trim() !== '') {
-    const parsedSalida = Number(raw.SALIDA);
-    if (!isNaN(parsedSalida)) {
-      salida = parsedSalida;
-    }
-  }
-
-  // 3. Regla institucional:
+  // 2. Regla institucional y evaluación con parseNumero:
   const evaluation = evaluateTradeOutcome({
     direccion,
     entrada,
@@ -234,11 +226,11 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0, hoja
   if (overrides[id]) {
     const override = overrides[id];
     const mergedDir = override.direccion || parsedTrade.direccion;
-    const mergedEnt = override.entrada !== undefined ? override.entrada : parsedTrade.entrada;
-    const mergedSal = override.salida !== undefined ? override.salida : parsedTrade.salida;
-    const mergedSl = override.sl !== undefined ? override.sl : parsedTrade.sl;
-    const mergedTp = override.tp !== undefined ? override.tp : parsedTrade.tp;
-    const mergedMoney = override.money !== undefined ? override.money : parsedTrade.money;
+    const mergedEnt = override.entrada !== undefined ? (parseNumero(override.entrada) ?? 0) : parsedTrade.entrada;
+    const mergedSal = override.salida !== undefined ? parseNumero(override.salida) : parsedTrade.salida;
+    const mergedSl = override.sl !== undefined ? (parseNumero(override.sl) ?? 0) : parsedTrade.sl;
+    const mergedTp = override.tp !== undefined ? (parseNumero(override.tp) ?? 0) : parsedTrade.tp;
+    const mergedMoney = override.money !== undefined ? (parseNumero(override.money) ?? 0) : parsedTrade.money;
 
     const reEval = evaluateTradeOutcome({
       direccion: mergedDir,
@@ -278,9 +270,9 @@ export function deduplicateRawTrades(rawList: RawTrade[], hoja?: string): RawTra
 
   activeList.forEach((item, index) => {
     const activo = String(item.ACTIVO || '').trim().toUpperCase();
-    const entrada = Number(item.ENTRADA || 0).toFixed(2);
-    const sl = Number(item.SL || 0).toFixed(2);
-    const tp = Number(item.TP || 0).toFixed(2);
+    const entrada = (parseNumero(item.ENTRADA) ?? 0).toFixed(5);
+    const sl = (parseNumero(item.SL) ?? 0).toFixed(5);
+    const tp = (parseNumero(item.TP) ?? 0).toFixed(5);
     const setup = String(item.SETUP || '').trim().toLowerCase();
     const lessonSnippet = String(item.LECCION || '').slice(0, 30).trim().toLowerCase();
 
@@ -512,9 +504,24 @@ export async function postTradeToAppsScript(
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   const targetHoja = hoja || payload.hoja;
 
+  const entradaNum = parseNumero(payload.trade.ENTRADA) ?? 0;
+  const salidaNum = parseNumero(payload.trade.SALIDA);
+  const slNum = parseNumero(payload.trade.SL) ?? 0;
+  const tpNum = parseNumero(payload.trade.TP) ?? 0;
+  const moneyNum = parseNumero(payload.trade.MONEY) ?? 0;
+
+  const sanitizedTrade = {
+    ...payload.trade,
+    ENTRADA: entradaNum,
+    SALIDA: salidaNum !== null ? salidaNum : entradaNum,
+    SL: slNum,
+    TP: tpNum,
+    MONEY: moneyNum
+  };
+
   const bodyPayload: any = {
     key: payload.key,
-    trade: payload.trade,
+    trade: sanitizedTrade,
     imagen: payload.imagen || null
   };
 
@@ -573,14 +580,20 @@ export async function updateTradeInAppsScript(
     return { ok: false, error: 'ID de trade no especificado para actualizar.' };
   }
 
+  const entradaNum = parseNumero(payload.trade.ENTRADA) ?? 0;
+  const salidaNum = parseNumero(payload.trade.SALIDA);
+  const slNum = parseNumero(payload.trade.SL) ?? 0;
+  const tpNum = parseNumero(payload.trade.TP) ?? 0;
+  const moneyNum = parseNumero(payload.trade.MONEY) ?? 0;
+
   const rawImage = payload.trade.IMAGEN || '';
   const evaluation = evaluateTradeOutcome({
     direccion: payload.trade.DIRECCION,
-    entrada: payload.trade.ENTRADA,
-    salida: payload.trade.SALIDA,
-    sl: payload.trade.SL,
-    tp: payload.trade.TP,
-    money: payload.trade.MONEY
+    entrada: entradaNum,
+    salida: salidaNum,
+    sl: slNum,
+    tp: tpNum,
+    money: moneyNum
   });
 
   const localUpdated: Trade = {
@@ -588,10 +601,10 @@ export async function updateTradeInAppsScript(
     fecha: normalizeDateToYYYYMMDD(payload.trade.FECHA),
     activo: payload.trade.ACTIVO,
     direccion: payload.trade.DIRECCION,
-    entrada: payload.trade.ENTRADA,
-    salida: payload.trade.SALIDA,
-    sl: payload.trade.SL,
-    tp: payload.trade.TP,
+    entrada: entradaNum,
+    salida: salidaNum,
+    sl: slNum,
+    tp: tpNum,
     money: evaluation.calculatedMoney,
     setup: payload.trade.SETUP,
     sesion: payload.trade.SESION,
@@ -613,15 +626,21 @@ export async function updateTradeInAppsScript(
   // Save in sheet-scoped local overrides
   saveLocalOverride(localUpdated, targetHoja);
 
+  const sanitizedTrade = {
+    ...payload.trade,
+    ID: tradeId,
+    ENTRADA: entradaNum,
+    SALIDA: salidaNum !== null ? salidaNum : entradaNum,
+    SL: slNum,
+    TP: tpNum,
+    MONEY: evaluation.calculatedMoney
+  };
+
   const bodyPayload: any = {
     key: payload.key,
     action: 'update',
     id: tradeId,
-    trade: {
-      ...payload.trade,
-      ID: tradeId,
-      MONEY: evaluation.calculatedMoney
-    },
+    trade: sanitizedTrade,
     imagen: payload.imagen || null
   };
 
