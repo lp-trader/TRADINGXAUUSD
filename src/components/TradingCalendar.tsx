@@ -26,6 +26,7 @@ interface TradingCalendarProps {
   onDeleteTrade?: (trade: Trade) => void;
   isOwner?: boolean;
   screenMode?: 'phone' | 'tablet' | 'pc';
+  isBacktest?: boolean;
 }
 
 const MONTH_NAMES = [
@@ -71,7 +72,8 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
   onEditTrade, 
   onDeleteTrade,
   isOwner = false,
-  screenMode = 'pc'
+  screenMode = 'pc',
+  isBacktest = false
 }) => {
   const isPhone = screenMode === 'phone';
   const [calendarViewMode, setCalendarViewMode] = useState<'grid' | 'list'>('grid');
@@ -344,10 +346,14 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
   };
 
   return (
-    <section className="glass-panel rounded-3xl p-4 sm:p-7 lg:p-8 border border-white/[0.08] shadow-2xl relative overflow-hidden mb-6">
+    <section className={`glass-panel rounded-3xl p-4 sm:p-7 lg:p-8 border shadow-2xl relative overflow-hidden mb-6 transition-all ${
+      isBacktest ? 'border-[#A855F7]/25' : 'border-white/[0.08]'
+    }`}>
       
       {/* Decorative top accent */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#E0B341]/60 to-transparent opacity-70" />
+      <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent to-transparent opacity-70 ${
+        isBacktest ? 'via-[#A855F7]/70' : 'via-[#E0B341]/60'
+      }`} />
 
       {/* Header Bar: Title & Month Navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -356,7 +362,11 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
             <h2 className="font-heading text-lg sm:text-xl font-bold text-white tracking-tight">
               Calendario de Resultados
             </h2>
-            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#E0B341]/10 text-[#E0B341] border border-[#E0B341]/20">
+            <span className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border transition-colors ${
+              isBacktest
+                ? 'bg-[#A855F7]/15 text-[#C084FC] border-[#A855F7]/30'
+                : 'bg-[#E0B341]/10 text-[#E0B341] border-[#E0B341]/20'
+            }`}>
               Vista Diaria
             </span>
           </div>
@@ -373,10 +383,14 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                 setViewYear(latestTradeInfo.year);
                 setViewMonth(latestTradeInfo.month);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#E0B341]/15 hover:bg-[#E0B341]/25 text-[#E0B341] border border-[#E0B341]/30 transition-all"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all ${
+                isBacktest
+                  ? 'bg-[#A855F7]/15 hover:bg-[#A855F7]/25 text-[#C084FC] border-[#A855F7]/30'
+                  : 'bg-[#E0B341]/15 hover:bg-[#E0B341]/25 text-[#E0B341] border-[#E0B341]/30'
+              }`}
               title={`Ir al mes con operaciones (${MONTH_NAMES[latestTradeInfo.month - 1]} ${latestTradeInfo.year})`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#E0B341]" />
+              <Sparkles className={`w-3.5 h-3.5 ${isBacktest ? 'text-[#C084FC]' : 'text-[#E0B341]'}`} />
               <span>Ver {MONTH_NAMES[latestTradeInfo.month - 1].slice(0, 3)} {latestTradeInfo.year}</span>
             </button>
           )}
@@ -386,7 +400,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-200 hover:text-white border border-white/[0.08] transition-all"
             title="Ir al mes actual"
           >
-            <CalendarIcon className="w-3.5 h-3.5 text-[#E0B341]" />
+            <CalendarIcon className={`w-3.5 h-3.5 ${isBacktest ? 'text-[#C084FC]' : 'text-[#E0B341]'}`} />
             <span>Hoy</span>
           </button>
 

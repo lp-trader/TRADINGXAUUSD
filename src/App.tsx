@@ -4,11 +4,16 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Trade } from './types/trade';
+import { Trade, AppMode } from './types/trade';
 import { 
   fetchTradesFromAppsScript, 
+  fetchBacktestSheets,
   getStoredOwnerKey, 
   setStoredOwnerKey,
+  getStoredAppMode,
+  setStoredAppMode,
+  getStoredActiveBacktest,
+  setStoredActiveBacktest,
   deleteTradeInAppsScript
 } from './services/api';
 import { 
@@ -29,12 +34,25 @@ import { TradeGallery } from './components/TradeGallery';
 import { TradeDetailModal } from './components/TradeDetailModal';
 import { TradeFormModal } from './components/TradeFormModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
+import { NewBacktestModal } from './components/NewBacktestModal';
 import { useScreenMode } from './hooks/useScreenMode';
 
-import { Loader2, AlertCircle, RefreshCw, PlusCircle, CheckCircle2, Trash2 } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Trash2, FlaskConical, Plus } from 'lucide-react';
 
 export default function App() {
   const screenInfo = useScreenMode();
+
+  // App Mode State ('real' | 'backtest') with localStorage persistence
+  const [appMode, setAppMode] = useState<AppMode>(() => getStoredAppMode());
+  const isBacktest = appMode === 'backtest';
+
+  // Backtest Sheets State
+  const [backtestSheets, setBacktestSheets] = useState<string[]>([]);
+  const [activeBacktest, setActiveBacktest] = useState<string>(() => getStoredActiveBacktest());
+  const [isLoadingSheets, setIsLoadingSheets] = useState<boolean>(false);
+  const [isNewBacktestOpen, setIsNewBacktestOpen] = useState<boolean>(false);
+
+  // Trades & Loading State
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -67,12 +85,51 @@ export default function App() {
     }
   }, []);
 
-  // Fetch trades from Google Apps Script
-  const loadTrades = useCallback(async () => {
+  // Determine current active sheet name
+  const currentSheet = isBacktest ? (activeBacktest || '') : 'Trades';
+
+  // Fetch backtest sheets from Google Apps Script
+  const loadBacktestSheets = useCallback(async (): Promise<string[]> => {
+    setIsLoadingSheets(true);
+    try {
+      const sheets = await fetchBacktestSheets();
+      setBacktestSheets(sheets);
+
+      // Determine active backtest
+      let targetSheet = '';
+      const stored = getStoredActiveBacktest();
+      if (stored && sheets.includes(stored)) {
+        targetSheet = stored;
+      } else if (sheets.length > 0) {
+        targetSheet = sheets[0];
+      }
+
+      setActiveBacktest(targetSheet);
+      setStoredActiveBacktest(targetSheet);
+      return sheets;
+    } catch (err) {
+      console.error('Error al cargar hojas de backtest:', err);
+      return [];
+    } finally {
+      setIsLoadingSheets(false);
+    }
+  }, []);
+
+  // Fetch trades from Google Apps Script for the selected sheet
+  const loadTrades = useCallback(async (sheetToLoad?: string) => {
+    const sheet = sheetToLoad !== undefined ? sheetToLoad : currentSheet;
+
+    // If in backtest mode but no backtest sheet is available, trades should be empty
+    if (isBacktest && !sheet) {
+      setTrades([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setFetchError(null);
     try {
-      const data = await fetchTradesFromAppsScript();
+      const data = await fetchTradesFromAppsScript(sheet);
       setTrades(data);
 
       // Keep selectedTrade in sync if currently viewed
@@ -87,11 +144,77 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentSheet, isBacktest]);
 
+  // Initial load or mode change handler
   useEffect(() => {
-    loadTrades();
-  }, [loadTrades]);
+    if (appMode === 'backtest') {
+      loadBacktestSheets().then((sheets) => {
+        const stored = getStoredActiveBacktest();
+        const active = (stored && sheets.includes(stored)) ? stored : sheets[0] || '';
+        if (active) {
+          loadTrades(active);
+        } else {
+          setTrades([]);
+          setIsLoading(false);
+        }
+      });
+    } else {
+      loadTrades('Trades');
+    }
+  }, [appMode, loadBacktestSheets, loadTrades]);
+
+  // Mode switch handler
+  const handleChangeAppMode = (mode: AppMode) => {
+    if (mode === appMode) return;
+    setAppMode(mode);
+    setStoredAppMode(mode);
+    setSelectedTrade(null);
+    setTradeToEdit(null);
+    setTradeToDelete(null);
+
+    if (mode === 'real') {
+      showToast('Cambiado a Modo Real (Trades en vivo).');
+    } else {
+      showToast('Cambiado a Modo Backtest.');
+    }
+  };
+
+  // Active Backtest sheet change handler
+  const handleChangeActiveBacktest = (sheet: string) => {
+    if (sheet === activeBacktest) return;
+    setActiveBacktest(sheet);
+    setStoredActiveBacktest(sheet);
+    setSelectedTrade(null);
+    setTradeToEdit(null);
+    setTradeToDelete(null);
+    loadTrades(sheet);
+    showToast(`Mostrando datos de ${sheet}`);
+  };
+
+  // Backtest created success handler
+  const handleBacktestCreated = (newSheetName: string) => {
+    setBacktestSheets((prev) => Array.from(new Set([...prev, newSheetName])));
+    setActiveBacktest(newSheetName);
+    setStoredActiveBacktest(newSheetName);
+    setTrades([]);
+    showToast(`¡Pestaña "${newSheetName}" creada y seleccionada!`);
+    loadTrades(newSheetName);
+  };
+
+  // Refresh handler
+  const handleRefresh = () => {
+    if (isBacktest) {
+      loadBacktestSheets().then((sheets) => {
+        const target = activeBacktest && sheets.includes(activeBacktest) ? activeBacktest : sheets[0] || '';
+        if (target) {
+          loadTrades(target);
+        }
+      });
+    } else {
+      loadTrades('Trades');
+    }
+  };
 
   // Derived calculations
   const metrics = useMemo(() => calculateDashboardMetrics(trades), [trades]);
@@ -152,7 +275,7 @@ export default function App() {
     setIsDeleting(true);
 
     try {
-      await deleteTradeInAppsScript(targetId, ownerKey);
+      await deleteTradeInAppsScript(targetId, ownerKey, currentSheet);
 
       // Instantly filter out trade from state
       setTrades((prev) => prev.filter((t) => t.id !== targetId));
@@ -167,7 +290,7 @@ export default function App() {
       }
 
       setTradeToDelete(null);
-      showToast('Trade eliminado permanentemente del diario.');
+      showToast('Trade eliminado permanentemente.');
     } catch (err: any) {
       console.error('Error al eliminar trade:', err);
       showToast('Error al eliminar el trade: ' + (err.message || 'Error desconocido'));
@@ -177,13 +300,21 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0D12] text-[#EDEDED] flex flex-col font-sans selection:bg-[#E0B341]/30 selection:text-[#E0B341] overflow-x-hidden w-full max-w-full">
+    <div className={`min-h-screen bg-[#0B0D12] text-[#EDEDED] flex flex-col font-sans overflow-x-hidden w-full max-w-full transition-colors ${
+      isBacktest 
+        ? 'selection:bg-[#A855F7]/30 selection:text-[#C084FC]' 
+        : 'selection:bg-[#E0B341]/30 selection:text-[#E0B341]'
+    }`}>
       
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-3 duration-300">
-          <div className="glass-dropdown px-4 py-3 rounded-2xl shadow-2xl border border-[#E0B341]/40 text-xs font-medium text-white flex items-center gap-2 max-w-sm">
-            <span className="w-2 h-2 rounded-full bg-[#E0B341] animate-ping" />
+          <div className={`glass-dropdown px-4 py-3 rounded-2xl shadow-2xl border text-xs font-medium text-white flex items-center gap-2 max-w-sm ${
+            isBacktest ? 'border-[#A855F7]/40' : 'border-[#E0B341]/40'
+          }`}>
+            <span className={`w-2 h-2 rounded-full animate-ping ${
+              isBacktest ? 'bg-[#C084FC]' : 'bg-[#E0B341]'
+            }`} />
             <span>{toastMessage}</span>
           </div>
         </div>
@@ -195,26 +326,39 @@ export default function App() {
         onOpenAuthModal={() => setIsAuthOpen(true)}
         onLogoutOwner={handleLogoutOwner}
         onOpenNewTrade={handleOpenNewTrade}
-        onRefreshTrades={loadTrades}
-        isLoading={isLoading}
+        onRefreshTrades={handleRefresh}
+        isLoading={isLoading || isLoadingSheets}
         screenInfo={screenInfo}
+        appMode={appMode}
+        onChangeAppMode={handleChangeAppMode}
+        backtestSheets={backtestSheets}
+        activeBacktest={activeBacktest}
+        onChangeActiveBacktest={handleChangeActiveBacktest}
+        onOpenNewBacktest={() => setIsNewBacktestOpen(true)}
       />
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
         
         {/* Loading State Skeleton */}
-        {isLoading && trades.length === 0 && (
+        {isLoading && trades.length === 0 && !fetchError && (
           <div className="py-24 flex flex-col items-center justify-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#E0B341]/10 border border-[#E0B341]/25 flex items-center justify-center text-[#E0B341]">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
+              isBacktest 
+                ? 'bg-[#A855F7]/10 border border-[#A855F7]/25 text-[#C084FC]' 
+                : 'bg-[#E0B341]/10 border border-[#E0B341]/25 text-[#E0B341]'
+            }`}>
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
             <div className="text-center">
               <h3 className="font-heading text-lg font-bold text-white">
-                Cargando Trading Journal...
+                {isBacktest ? `Cargando ${activeBacktest || 'Backtest'}...` : 'Cargando Trading Journal...'}
               </h3>
-              <p className="text-xs text-neutral-400 mt-1">
-                Conectando con Google Apps Script y obteniendo operaciones de XAU/USD
+              <p className="text-xs text-neutral-400 mt-1 font-mono">
+                {isBacktest
+                  ? `Conectando con pestaña "${activeBacktest}" en Google Apps Script`
+                  : 'Conectando con Google Apps Script y obteniendo operaciones de XAU/USD'
+                }
               </p>
             </div>
           </div>
@@ -233,7 +377,7 @@ export default function App() {
               </div>
             </div>
             <button
-              onClick={loadTrades}
+              onClick={handleRefresh}
               className="px-4 py-2 text-xs font-semibold rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/[0.1] shrink-0 flex items-center gap-1.5 transition-colors self-end sm:self-center"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -242,12 +386,41 @@ export default function App() {
           </div>
         )}
 
+        {/* Empty State: In Backtest mode when no backtest sheets exist at all */}
+        {isBacktest && !isLoading && !isLoadingSheets && backtestSheets.length === 0 && (
+          <div className="py-16 sm:py-24">
+            <div className="glass-panel max-w-xl mx-auto rounded-3xl p-8 sm:p-12 text-center border border-[#A855F7]/30 shadow-2xl relative overflow-hidden">
+              <div className="w-16 h-16 rounded-2xl bg-[#A855F7]/15 border border-[#A855F7]/30 mx-auto flex items-center justify-center text-[#C084FC] mb-5 shadow-lg shadow-[#A855F7]/15">
+                <FlaskConical className="w-8 h-8" />
+              </div>
+              <h3 className="font-heading text-2xl font-bold text-white tracking-tight">
+                No tienes ningún backtest creado
+              </h3>
+              <p className="text-xs sm:text-sm text-neutral-400 mt-2.5 mb-7 leading-relaxed">
+                Crea tu primera pestaña de backtest para registrar y auditar estrategias cuantitativas de forma 100% independiente sin afectar tu diario real.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsNewBacktestOpen(true)}
+                className="px-6 py-3 text-sm font-bold rounded-2xl bg-gradient-to-r from-[#A855F7] to-[#9333EA] hover:brightness-110 active:scale-95 text-white transition-all shadow-xl shadow-[#A855F7]/25 inline-flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Crear mi primer backtest</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Populated Content */}
-        {(!isLoading || trades.length > 0) && (
+        {(!isBacktest || backtestSheets.length > 0) && (!isLoading || trades.length > 0) && (
           <div className="space-y-5 sm:space-y-6">
             
             {/* 1. Hero + Dashboard Metrics */}
-            <HeroStats metrics={metrics} />
+            <HeroStats 
+              metrics={metrics} 
+              isBacktest={isBacktest} 
+              activeBacktestName={activeBacktest}
+            />
 
             {/* 1.5. Calendario de Resultados */}
             <TradingCalendar
@@ -257,16 +430,21 @@ export default function App() {
               onDeleteTrade={handleRequestDeleteTrade}
               isOwner={isOwner}
               screenMode={screenInfo.mode}
+              isBacktest={isBacktest}
             />
 
             {/* 2. Equity Curve */}
-            <EquityChart equityPoints={equityPoints} />
+            <EquityChart 
+              equityPoints={equityPoints} 
+              isBacktest={isBacktest}
+            />
 
             {/* 3. Performance Breakdown by Session, Setup and Emotion */}
             <MetricsBreakdown
               sessionStats={sessionStats}
               setupStats={setupStats}
               emotionStats={emotionStats}
+              isBacktest={isBacktest}
             />
 
             {/* 4. Trades Gallery & Lightbox Trigger */}
@@ -277,6 +455,8 @@ export default function App() {
               onEditTrade={handleOpenEditTrade}
               onDeleteTrade={handleRequestDeleteTrade}
               isOwner={isOwner}
+              isBacktest={isBacktest}
+              activeBacktestName={activeBacktest}
             />
 
           </div>
@@ -301,6 +481,16 @@ export default function App() {
         tradeToEdit={tradeToEdit}
         onSuccess={handleTradeSavedSuccess}
         onDeleteTrade={handleRequestDeleteTrade}
+        hoja={currentSheet}
+        isBacktest={isBacktest}
+      />
+
+      {/* New Backtest Creation Modal */}
+      <NewBacktestModal
+        isOpen={isNewBacktestOpen}
+        onClose={() => setIsNewBacktestOpen(false)}
+        ownerKey={ownerKey}
+        onSuccess={handleBacktestCreated}
       />
 
       {/* Owner Auth Modal */}
@@ -330,7 +520,7 @@ export default function App() {
                 Eliminar Trade
               </h3>
               <p className="text-xs text-neutral-400 mt-1.5 leading-relaxed">
-                ¿Estás seguro de que deseas eliminar este trade del diario?
+                ¿Estás seguro de que deseas eliminar este trade de {isBacktest ? `"${currentSheet}"` : 'tu diario'}?
               </p>
               <div className="mt-2.5 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] font-mono text-xs text-neutral-300 flex items-center justify-between">
                 <span className="font-semibold text-white">{tradeToDelete.activo}</span>
@@ -373,7 +563,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Footer (Mandatory Disclaimer) */}
+      {/* Footer */}
       <footer className="border-t border-white/[0.06] bg-[#0B0D12] py-8 text-neutral-500 text-xs mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div className="flex items-center gap-3">
@@ -396,9 +586,9 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3 text-[11px]">
-            <span className="flex items-center gap-1.5 text-[#34C97A] font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#34C97A]" />
-              Apps Script Backend
+            <span className={`flex items-center gap-1.5 font-mono ${isBacktest ? 'text-[#C084FC]' : 'text-[#34C97A]'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isBacktest ? 'bg-[#C084FC]' : 'bg-[#34C97A]'}`} />
+              {isBacktest ? `Pestaña: ${currentSheet || 'Sin selección'}` : 'Apps Script Real Backend'}
             </span>
           </div>
         </div>

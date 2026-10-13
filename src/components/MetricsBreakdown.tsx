@@ -6,12 +6,14 @@ interface MetricsBreakdownProps {
   sessionStats: GroupPerformance[];
   setupStats: GroupPerformance[];
   emotionStats: GroupPerformance[];
+  isBacktest?: boolean;
 }
 
 export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
   sessionStats,
   setupStats,
-  emotionStats
+  emotionStats,
+  isBacktest = false
 }) => {
   const [activeTab, setActiveTab] = useState<'SESION' | 'SETUP' | 'EMOTION'>('SESION');
 
@@ -20,7 +22,9 @@ export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
     activeTab === 'SETUP' ? setupStats : emotionStats;
 
   return (
-    <section className="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-white/[0.08] shadow-xl mb-6 sm:mb-8">
+    <section className={`glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border shadow-xl mb-6 sm:mb-8 transition-all ${
+      isBacktest ? 'border-[#A855F7]/25' : 'border-white/[0.08]'
+    }`}>
       {/* Header and Filter Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-5 sm:mb-6">
         <div>
@@ -28,7 +32,11 @@ export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
             <h3 className="font-heading text-base sm:text-xl font-bold text-white tracking-tight">
               Rendimiento por Categoría
             </h3>
-            <span className="text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-neutral-300 border border-white/[0.08]">
+            <span className={`text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border transition-colors ${
+              isBacktest
+                ? 'bg-[#A855F7]/15 text-[#C084FC] border-[#A855F7]/30'
+                : 'bg-white/[0.05] text-neutral-300 border border-white/[0.08]'
+            }`}>
               Estadísticas
             </span>
           </div>
@@ -43,7 +51,9 @@ export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
             onClick={() => setActiveTab('SESION')}
             className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg sm:rounded-xl transition-all ${
               activeTab === 'SESION'
-                ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
+                ? isBacktest
+                  ? 'bg-[#A855F7]/20 text-[#C084FC] border border-[#A855F7]/40 shadow-sm'
+                  : 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
@@ -55,7 +65,9 @@ export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
             onClick={() => setActiveTab('SETUP')}
             className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg sm:rounded-xl transition-all ${
               activeTab === 'SETUP'
-                ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
+                ? isBacktest
+                  ? 'bg-[#A855F7]/20 text-[#C084FC] border border-[#A855F7]/40 shadow-sm'
+                  : 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
@@ -67,7 +79,9 @@ export const MetricsBreakdown: React.FC<MetricsBreakdownProps> = ({
             onClick={() => setActiveTab('EMOTION')}
             className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-medium rounded-lg sm:rounded-xl transition-all ${
               activeTab === 'EMOTION'
-                ? 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
+                ? isBacktest
+                  ? 'bg-[#A855F7]/20 text-[#C084FC] border border-[#A855F7]/40 shadow-sm'
+                  : 'bg-[#E0B341]/20 text-[#E0B341] border border-[#E0B341]/35 shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >

@@ -4,6 +4,7 @@ import { Calendar, DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react
 
 interface EquityChartProps {
   equityPoints: EquityPoint[];
+  isBacktest?: boolean;
 }
 
 interface ChartPointData {
@@ -21,7 +22,7 @@ interface ChartPoint {
   index: number;
 }
 
-export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
+export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints, isBacktest = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -130,7 +131,9 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
   }, [minVal, maxVal]);
 
   return (
-    <div className="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-white/[0.08] shadow-2xl relative mb-6 sm:mb-8 overflow-hidden">
+    <div className={`glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border shadow-2xl relative mb-6 sm:mb-8 overflow-hidden transition-all ${
+      isBacktest ? 'border-[#A855F7]/25' : 'border-white/[0.08]'
+    }`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
@@ -138,8 +141,12 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
             <h2 className="font-heading text-base sm:text-xl font-bold text-white tracking-tight">
               Curva de Equity Acumulado
             </h2>
-            <span className="text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#E0B341]/10 text-[#E0B341] border border-[#E0B341]/20">
-              Curva de Crecimiento
+            <span className={`text-[10px] sm:text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border transition-colors ${
+              isBacktest
+                ? 'bg-[#A855F7]/15 text-[#C084FC] border-[#A855F7]/30'
+                : 'bg-[#E0B341]/10 text-[#E0B341] border-[#E0B341]/20'
+            }`}>
+              {isBacktest ? 'Backtest Growth' : 'Curva de Crecimiento'}
             </span>
           </div>
           <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5 sm:mt-1">
@@ -175,10 +182,12 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
         {/* Empty state message overlay */}
         {!hasData && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 pointer-events-none">
-            <div className="px-4 py-2 rounded-2xl bg-[#0B0D12]/90 border border-[#E0B341]/30 backdrop-blur-md shadow-2xl flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#E0B341]" />
+            <div className={`px-4 py-2 rounded-2xl bg-[#0B0D12]/90 border backdrop-blur-md shadow-2xl flex items-center gap-2 ${
+              isBacktest ? 'border-[#A855F7]/30' : 'border-[#E0B341]/30'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${isBacktest ? 'bg-[#C084FC]' : 'bg-[#E0B341]'}`} />
               <span className="text-xs sm:text-sm font-medium text-neutral-300">
-                Aún no hay trades. Registra el primero para ver tu curva.
+                Aún no hay trades registrados.
               </span>
             </div>
           </div>
@@ -189,15 +198,15 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
           className="w-full h-auto max-h-[360px] overflow-visible"
         >
           <defs>
-            {/* Golden Gradient beneath line */}
-            <linearGradient id="equityGoldGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#E0B341" stopOpacity="0.45" />
-              <stop offset="50%" stopColor="#E0B341" stopOpacity="0.15" />
-              <stop offset="95%" stopColor="#E0B341" stopOpacity="0.01" />
+            {/* Color Gradient beneath line */}
+            <linearGradient id="equityLineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={isBacktest ? '#A855F7' : '#E0B341'} stopOpacity="0.45" />
+              <stop offset="50%" stopColor={isBacktest ? '#A855F7' : '#E0B341'} stopOpacity="0.15" />
+              <stop offset="95%" stopColor={isBacktest ? '#A855F7' : '#E0B341'} stopOpacity="0.01" />
               <stop offset="100%" stopColor="#0B0D12" stopOpacity="0" />
             </linearGradient>
 
-            <filter id="goldGlowLine" x="-20%" y="-20%" width="140%" height="140%">
+            <filter id="equityGlowLine" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="2.5" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
@@ -239,24 +248,24 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
             />
           )}
 
-          {/* Golden Area Gradient Fill */}
+          {/* Area Gradient Fill */}
           {areaString && (
             <path
               d={areaString}
-              fill="url(#equityGoldGrad)"
+              fill="url(#equityLineGrad)"
             />
           )}
 
-          {/* Main Gold Line */}
+          {/* Main Line */}
           {pathString && (
             <path
               d={pathString}
               fill="none"
-              stroke="#E0B341"
+              stroke={isBacktest ? '#C084FC' : '#E0B341'}
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter="url(#goldGlowLine)"
+              filter="url(#equityGlowLine)"
             />
           )}
 
@@ -268,7 +277,7 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
                 y1={padding.top}
                 x2={activePoint.x}
                 y2={height - padding.bottom}
-                stroke="rgba(224, 179, 65, 0.5)"
+                stroke={isBacktest ? 'rgba(192, 132, 252, 0.5)' : 'rgba(224, 179, 65, 0.5)'}
                 strokeWidth="1"
                 strokeDasharray="3 3"
               />
@@ -276,8 +285,8 @@ export const EquityChart: React.FC<EquityChartProps> = ({ equityPoints }) => {
                 cx={activePoint.x}
                 cy={activePoint.y}
                 r="6"
-                fill="#E0B341"
-                className="drop-shadow-[0_0_8px_rgba(224,179,65,0.8)]"
+                fill={isBacktest ? '#C084FC' : '#E0B341'}
+                className={isBacktest ? 'drop-shadow-[0_0_8px_rgba(192,132,252,0.8)]' : 'drop-shadow-[0_0_8px_rgba(224,179,65,0.8)]'}
               />
               <circle
                 cx={activePoint.x}

@@ -1,8 +1,10 @@
-import { RawTrade, Trade, TradePayload } from '../types/trade';
+import { RawTrade, Trade, TradePayload, AppMode } from '../types/trade';
 import { evaluateTradeOutcome, normalizeDateToYYYYMMDD } from '../utils/tradeCalculation';
 
 export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybx6mAa-PXrkia4ZdRe1xslt2q1QzKpqgtkpKHeb7ZtE--dFgL1jetmkbivg8dMwG-oA/exec';
 export const OWNER_KEY_STORAGE = 'trading_journal_owner_key';
+export const APP_MODE_STORAGE = 'trading_journal_app_mode';
+export const ACTIVE_BACKTEST_STORAGE = 'trading_journal_active_backtest';
 export const TRADE_OVERRIDES_STORAGE = 'trading_journal_trade_overrides';
 export const TRADE_DELETED_STORAGE = 'trading_journal_deleted_trades';
 
@@ -26,73 +28,141 @@ export function setStoredOwnerKey(key: string): void {
   }
 }
 
-export function getDeletedTradeIds(): string[] {
+export function getStoredAppMode(): AppMode {
   try {
-    const raw = localStorage.getItem(TRADE_DELETED_STORAGE);
-    return raw ? JSON.parse(raw) : [];
+    const mode = localStorage.getItem(APP_MODE_STORAGE);
+    if (mode === 'backtest') return 'backtest';
+    return 'real';
+  } catch {
+    return 'real';
+  }
+}
+
+export function setStoredAppMode(mode: AppMode): void {
+  try {
+    localStorage.setItem(APP_MODE_STORAGE, mode);
+  } catch (err) {
+    console.error('Error saving app mode in localStorage:', err);
+  }
+}
+
+export function getStoredActiveBacktest(): string {
+  try {
+    return localStorage.getItem(ACTIVE_BACKTEST_STORAGE) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setStoredActiveBacktest(sheetName: string): void {
+  try {
+    if (sheetName) {
+      localStorage.setItem(ACTIVE_BACKTEST_STORAGE, sheetName.trim());
+    } else {
+      localStorage.removeItem(ACTIVE_BACKTEST_STORAGE);
+    }
+  } catch (err) {
+    console.error('Error saving active backtest in localStorage:', err);
+  }
+}
+
+function getDeletedStorageKey(hoja?: string): string {
+  const clean = hoja && hoja.trim() !== 'Trades' ? hoja.trim().replace(/\s+/g, '_') : 'Trades';
+  return `${TRADE_DELETED_STORAGE}_${clean}`;
+}
+
+function getOverridesStorageKey(hoja?: string): string {
+  const clean = hoja && hoja.trim() !== 'Trades' ? hoja.trim().replace(/\s+/g, '_') : 'Trades';
+  return `${TRADE_OVERRIDES_STORAGE}_${clean}`;
+}
+
+export function getDeletedTradeIds(hoja?: string): string[] {
+  try {
+    const key = getDeletedStorageKey(hoja);
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+
+    // Fallback to legacy global storage for "Trades"
+    if (!hoja || hoja === 'Trades') {
+      const legacyRaw = localStorage.getItem(TRADE_DELETED_STORAGE);
+      return legacyRaw ? JSON.parse(legacyRaw) : [];
+    }
+    return [];
   } catch {
     return [];
   }
 }
 
-export function saveDeletedTradeId(tradeId: string): void {
+export function saveDeletedTradeId(tradeId: string, hoja?: string): void {
   try {
-    const list = getDeletedTradeIds();
+    const list = getDeletedTradeIds(hoja);
     if (!list.includes(tradeId)) {
       list.push(tradeId);
-      localStorage.setItem(TRADE_DELETED_STORAGE, JSON.stringify(list));
+      const key = getDeletedStorageKey(hoja);
+      localStorage.setItem(key, JSON.stringify(list));
     }
-    removeLocalOverride(tradeId);
+    removeLocalOverride(tradeId, hoja);
   } catch (err) {
     console.error('Error saving deleted trade id:', err);
   }
 }
 
-export function removeDeletedTradeId(tradeId: string): void {
+export function removeDeletedTradeId(tradeId: string, hoja?: string): void {
   try {
-    const list = getDeletedTradeIds().filter((id) => id !== tradeId);
-    localStorage.setItem(TRADE_DELETED_STORAGE, JSON.stringify(list));
+    const list = getDeletedTradeIds(hoja).filter((id) => id !== tradeId);
+    const key = getDeletedStorageKey(hoja);
+    localStorage.setItem(key, JSON.stringify(list));
   } catch (err) {
     console.error('Error removing deleted trade id:', err);
   }
 }
 
-export function getLocalOverrides(): Record<string, Partial<Trade>> {
+export function getLocalOverrides(hoja?: string): Record<string, Partial<Trade>> {
   try {
-    const raw = localStorage.getItem(TRADE_OVERRIDES_STORAGE);
-    return raw ? JSON.parse(raw) : {};
+    const key = getOverridesStorageKey(hoja);
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+
+    // Fallback to legacy global storage for "Trades"
+    if (!hoja || hoja === 'Trades') {
+      const legacyRaw = localStorage.getItem(TRADE_OVERRIDES_STORAGE);
+      return legacyRaw ? JSON.parse(legacyRaw) : {};
+    }
+    return {};
   } catch {
     return {};
   }
 }
 
-export function saveLocalOverride(trade: Trade): void {
+export function saveLocalOverride(trade: Trade, hoja?: string): void {
   try {
-    const current = getLocalOverrides();
+    const current = getLocalOverrides(hoja);
     current[trade.id] = trade;
-    localStorage.setItem(TRADE_OVERRIDES_STORAGE, JSON.stringify(current));
+    const key = getOverridesStorageKey(hoja);
+    localStorage.setItem(key, JSON.stringify(current));
   } catch (err) {
     console.error('Error saving trade override:', err);
   }
 }
 
-export function removeLocalOverride(tradeId: string): void {
+export function removeLocalOverride(tradeId: string, hoja?: string): void {
   try {
-    const current = getLocalOverrides();
+    const current = getLocalOverrides(hoja);
     delete current[tradeId];
-    localStorage.setItem(TRADE_OVERRIDES_STORAGE, JSON.stringify(current));
+    const key = getOverridesStorageKey(hoja);
+    localStorage.setItem(key, JSON.stringify(current));
   } catch (err) {
     console.error('Error removing trade override:', err);
   }
 }
 
-export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Trade {
+export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0, hoja?: string): Trade {
   const entrada = Number(raw.ENTRADA) || 0;
   const sl = Number(raw.SL) || 0;
   const tp = Number(raw.TP) || 0;
   const rawMoney = Number(raw.MONEY) || 0;
 
-  // 1. DIRECCION: selector con "Buy" y "Sell". Si una fila antigua no lo tiene, deduce por SL y ENTRADA.
+  // 1. DIRECCION: selector con "Buy" y "Sell". Si una fila no lo tiene, deduce por SL y ENTRADA.
   let direccion: 'Buy' | 'Sell';
   const rawDir = String(raw.DIRECCION || '').trim().toLowerCase();
   if (rawDir === 'buy' || rawDir === 'compra') {
@@ -100,7 +170,6 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
   } else if (rawDir === 'sell' || rawDir === 'venta') {
     direccion = 'Sell';
   } else {
-    // Si SL < ENTRADA es Buy, si SL > ENTRADA es Sell
     direccion = sl < entrada ? 'Buy' : 'Sell';
   }
 
@@ -113,8 +182,7 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     }
   }
 
-  // 3. Regla institucional y solicitud del dueño:
-  // Tomar en consideración si es BUY o SELL y verificar salida vs SL (trade perdedor) y salida vs TP (trade ganador)
+  // 3. Regla institucional:
   const evaluation = evaluateTradeOutcome({
     direccion,
     entrada,
@@ -161,11 +229,10 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
     isTPHit: evaluation.isTPHit
   };
 
-  // Merge any locally saved modifications by owner
-  const overrides = getLocalOverrides();
+  // Merge any locally saved modifications by owner for this sheet
+  const overrides = getLocalOverrides(hoja);
   if (overrides[id]) {
     const override = overrides[id];
-    // Re-evaluate if override changed salida, sl, tp, etc.
     const mergedDir = override.direccion || parsedTrade.direccion;
     const mergedEnt = override.entrada !== undefined ? override.entrada : parsedTrade.entrada;
     const mergedSal = override.salida !== undefined ? override.salida : parsedTrade.salida;
@@ -198,11 +265,10 @@ export function parseTradeFromRaw(raw: RawTrade, fallbackIndex: number = 0): Tra
   return parsedTrade;
 }
 
-export function deduplicateRawTrades(rawList: RawTrade[]): RawTrade[] {
+export function deduplicateRawTrades(rawList: RawTrade[], hoja?: string): RawTrade[] {
   if (!rawList || rawList.length <= 1) return rawList || [];
 
-  const deletedIds = getDeletedTradeIds();
-  // Filter out any known deleted IDs first
+  const deletedIds = getDeletedTradeIds(hoja);
   const activeList = rawList.filter((item) => {
     const id = item.ID ? String(item.ID).trim() : '';
     return !id || !deletedIds.includes(id);
@@ -218,7 +284,6 @@ export function deduplicateRawTrades(rawList: RawTrade[]): RawTrade[] {
     const setup = String(item.SETUP || '').trim().toLowerCase();
     const lessonSnippet = String(item.LECCION || '').slice(0, 30).trim().toLowerCase();
 
-    // Unique execution signature of a trade
     const signature = `${activo}___${entrada}___${sl}___${tp}___${setup || lessonSnippet}`;
 
     if (!groups.has(signature)) {
@@ -234,12 +299,8 @@ export function deduplicateRawTrades(rawList: RawTrade[]): RawTrade[] {
     if (group.length === 1) {
       deduplicated.push(group[0].item);
     } else {
-      // Multiple records exist for the exact same trade operation (created by editing):
-      // 1. Preserve the chart image from whichever record had it uploaded
       const itemWithImage = group.find((g) => g.item.IMAGEN && String(g.item.IMAGEN).trim() !== '');
       const bestImage = itemWithImage ? String(itemWithImage.item.IMAGEN).trim() : '';
-
-      // 2. The latest record (last in sheet) represents the most recent edit state
       const latest = group[group.length - 1].item;
 
       const merged: RawTrade = {
@@ -249,7 +310,6 @@ export function deduplicateRawTrades(rawList: RawTrade[]): RawTrade[] {
 
       deduplicated.push(merged);
 
-      // 3. Mark all previous obsolete rows as superseded
       for (let i = 0; i < group.length - 1; i++) {
         const obsId = group[i].item.ID ? String(group[i].item.ID).trim() : '';
         if (obsId) {
@@ -259,19 +319,144 @@ export function deduplicateRawTrades(rawList: RawTrade[]): RawTrade[] {
     }
   });
 
-  // Permanently record newly detected obsolete IDs so they don't reappear
   if (obsoleteIds.length > 0) {
-    obsoleteIds.forEach((id) => saveDeletedTradeId(id));
+    obsoleteIds.forEach((id) => saveDeletedTradeId(id, hoja));
   }
 
   return deduplicated;
 }
 
-export async function fetchTradesFromAppsScript(): Promise<Trade[]> {
+/**
+ * Lists all backtest sheets from Google Apps Script (?action=hojas)
+ * Returns array of sheet names starting with "Backtest "
+ */
+export async function fetchBacktestSheets(): Promise<string[]> {
+  const url = `${APPS_SCRIPT_URL}?action=hojas`;
   let response: Response;
   try {
-    // GET simple sin headers ni opciones raras
-    response = await fetch(APPS_SCRIPT_URL);
+    response = await fetch(url);
+  } catch (err: any) {
+    console.error('Error al listar hojas de backtest:', err);
+    return [];
+  }
+
+  if (!response.ok) {
+    console.warn('Error HTTP al listar hojas de backtest:', response.status);
+    return [];
+  }
+
+  try {
+    const text = await response.text();
+    if (!text || !text.trim()) return [];
+
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return [];
+    }
+
+    let list: any[] = [];
+    if (Array.isArray(data)) {
+      list = data;
+    } else if (data && typeof data === 'object') {
+      if (Array.isArray(data.hojas)) list = data.hojas;
+      else if (Array.isArray(data.sheets)) list = data.sheets;
+      else if (Array.isArray(data.result)) list = data.result;
+      else if (Array.isArray(data.data)) list = data.data;
+    }
+
+    // Filter to sheets that start with "Backtest " (case-insensitive)
+    const backtestNames = list
+      .map((item) => String(item).trim())
+      .filter((name) => name.toLowerCase().startsWith('backtest '));
+
+    return Array.from(new Set(backtestNames));
+  } catch (err) {
+    console.error('Error al procesar listado de hojas:', err);
+    return [];
+  }
+}
+
+/**
+ * Creates a new Backtest sheet in Google Apps Script
+ * POST { key, action: "crearHoja", hoja: "Backtest 2025" }
+ */
+export async function createBacktestSheet(
+  nombre: string,
+  ownerKey: string
+): Promise<{ ok: boolean; hoja: string; error?: string }> {
+  const clean = nombre.trim();
+  if (!clean) {
+    return { ok: false, hoja: '', error: 'Por favor ingresa un nombre para el backtest.' };
+  }
+
+  // Ensure sheet name starts with "Backtest "
+  const sheetName = clean.toLowerCase().startsWith('backtest ')
+    ? clean
+    : `Backtest ${clean}`;
+
+  const bodyPayload = {
+    key: ownerKey.trim(),
+    action: 'crearHoja',
+    hoja: sheetName
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(bodyPayload)
+    });
+  } catch (err: any) {
+    return { ok: false, hoja: sheetName, error: `Error de conexión: ${err.message || String(err)}` };
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    return {
+      ok: false,
+      hoja: sheetName,
+      error: `HTTP ${response.status}: ${errorBody.slice(0, 300) || 'Error al crear la pestaña'}`
+    };
+  }
+
+  const rawText = await response.text();
+  try {
+    const result = JSON.parse(rawText);
+    if (result.error) {
+      return { ok: false, hoja: sheetName, error: String(result.error) };
+    }
+    return { ok: true, hoja: sheetName };
+  } catch {
+    if (
+      rawText.toLowerCase().includes('success') ||
+      rawText.toLowerCase().includes('ok') ||
+      rawText.toLowerCase().includes('cread')
+    ) {
+      return { ok: true, hoja: sheetName };
+    }
+    return { ok: true, hoja: sheetName };
+  }
+}
+
+/**
+ * Fetches trades for the specified sheet.
+ * If hoja is omitted or "Trades", reads the live "Trades" sheet without params.
+ * If hoja is a backtest sheet, appends ?hoja=NOMBRE (encoded).
+ */
+export async function fetchTradesFromAppsScript(hoja?: string): Promise<Trade[]> {
+  const targetHoja = hoja && hoja.trim() !== 'Trades' ? hoja.trim() : '';
+  const url = targetHoja
+    ? `${APPS_SCRIPT_URL}?hoja=${encodeURIComponent(targetHoja)}`
+    : APPS_SCRIPT_URL;
+
+  let response: Response;
+  try {
+    response = await fetch(url);
   } catch (netErr: any) {
     throw new Error(`Error de red o conexión: ${netErr?.message || String(netErr)}`);
   }
@@ -312,21 +497,31 @@ export async function fetchTradesFromAppsScript(): Promise<Trade[]> {
     }
   }
 
-  // Deduplicate trades and automatically merge superseded edit records
-  const cleanRaw = deduplicateRawTrades(rawList);
-  const deletedIds = getDeletedTradeIds();
+  // Deduplicate trades and automatically merge superseded edit records for this specific sheet
+  const cleanRaw = deduplicateRawTrades(rawList, targetHoja || 'Trades');
+  const deletedIds = getDeletedTradeIds(targetHoja || 'Trades');
 
   return cleanRaw
-    .map((item, idx) => parseTradeFromRaw(item, idx))
+    .map((item, idx) => parseTradeFromRaw(item, idx, targetHoja || 'Trades'))
     .filter((trade) => !deletedIds.includes(trade.id));
 }
 
-export async function postTradeToAppsScript(payload: TradePayload): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const bodyPayload = {
+export async function postTradeToAppsScript(
+  payload: TradePayload,
+  hoja?: string
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const targetHoja = hoja || payload.hoja;
+
+  const bodyPayload: any = {
     key: payload.key,
     trade: payload.trade,
     imagen: payload.imagen || null
   };
+
+  // Only include hoja if saving to a backtest sheet (if omitted, Apps Script defaults to "Trades")
+  if (targetHoja && targetHoja.trim() !== 'Trades') {
+    bodyPayload.hoja = targetHoja.trim();
+  }
 
   let response: Response;
   try {
@@ -368,13 +563,16 @@ export async function postTradeToAppsScript(payload: TradePayload): Promise<{ ok
   return { ok: false, error: result.message || 'Error desconocido al registrar el trade' };
 }
 
-export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ ok: boolean; id?: string; error?: string }> {
+export async function updateTradeInAppsScript(
+  payload: TradePayload,
+  hoja?: string
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const targetHoja = hoja || payload.hoja;
   const tradeId = payload.trade.ID || payload.id || '';
   if (!tradeId) {
     return { ok: false, error: 'ID de trade no especificado para actualizar.' };
   }
 
-  // Save in persistent local overrides immediately
   const rawImage = payload.trade.IMAGEN || '';
   const evaluation = evaluateTradeOutcome({
     direccion: payload.trade.DIRECCION,
@@ -412,10 +610,10 @@ export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ 
     isTPHit: evaluation.isTPHit
   };
 
-  saveLocalOverride(localUpdated);
+  // Save in sheet-scoped local overrides
+  saveLocalOverride(localUpdated, targetHoja);
 
-  // Send update request to Apps Script
-  const bodyPayload = {
+  const bodyPayload: any = {
     key: payload.key,
     action: 'update',
     id: tradeId,
@@ -426,6 +624,10 @@ export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ 
     },
     imagen: payload.imagen || null
   };
+
+  if (targetHoja && targetHoja.trim() !== 'Trades') {
+    bodyPayload.hoja = targetHoja.trim();
+  }
 
   try {
     const response = await fetch(APPS_SCRIPT_URL, {
@@ -453,20 +655,19 @@ export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ 
         }
       }
 
-      // CRITICAL DUPLICATION FIX:
-      // If the backend Apps Script assigned a new ID (i.e. appended a new row instead of in-place update):
       if (assignedId && assignedId !== tradeId) {
-        // 1. Mark the old trade ID as superseded/deleted so it will never show up as a duplicate
-        saveDeletedTradeId(tradeId);
-        removeLocalOverride(tradeId);
+        saveDeletedTradeId(tradeId, targetHoja);
+        removeLocalOverride(tradeId, targetHoja);
 
-        // 2. Persist the updated trade and its original image under the new assigned ID
-        saveLocalOverride({
-          ...localUpdated,
-          id: assignedId,
-          imagen: localUpdated.imagen || rawImage,
-          imageUrl: localUpdated.imageUrl
-        });
+        saveLocalOverride(
+          {
+            ...localUpdated,
+            id: assignedId,
+            imagen: localUpdated.imagen || rawImage,
+            imageUrl: localUpdated.imageUrl
+          },
+          targetHoja
+        );
 
         return { ok: true, id: assignedId };
       }
@@ -477,12 +678,14 @@ export async function updateTradeInAppsScript(payload: TradePayload): Promise<{ 
     console.warn('Apps Script update remote network notice:', err);
   }
 
-  // Even if remote Apps Script doesn't have an update endpoint deployed yet,
-  // local persistence guarantees the owner edits are saved and live across sessions.
   return { ok: true, id: tradeId };
 }
 
-export async function deleteTradeInAppsScript(tradeId: string, ownerKey: string): Promise<{ ok: boolean; error?: string }> {
+export async function deleteTradeInAppsScript(
+  tradeId: string,
+  ownerKey: string,
+  hoja?: string
+): Promise<{ ok: boolean; error?: string }> {
   if (!tradeId) {
     return { ok: false, error: 'ID de trade no especificado para eliminar.' };
   }
@@ -490,15 +693,18 @@ export async function deleteTradeInAppsScript(tradeId: string, ownerKey: string)
     return { ok: false, error: 'Se requiere la clave del Modo Dueño para eliminar trades.' };
   }
 
-  // Persist locally in deleted storage immediately so it vanishes across reloads and recalculations
-  saveDeletedTradeId(tradeId);
+  // Persist locally in sheet-scoped deleted storage
+  saveDeletedTradeId(tradeId, hoja);
 
-  // Send delete request to Apps Script
-  const bodyPayload = {
+  const bodyPayload: any = {
     key: ownerKey.trim(),
     action: 'delete',
     id: tradeId
   };
+
+  if (hoja && hoja.trim() !== 'Trades') {
+    bodyPayload.hoja = hoja.trim();
+  }
 
   try {
     const response = await fetch(APPS_SCRIPT_URL, {
@@ -526,8 +732,6 @@ export async function deleteTradeInAppsScript(tradeId: string, ownerKey: string)
     console.warn('Apps Script delete remote network notice:', err);
   }
 
-  // Even if remote Apps Script endpoint doesn't support delete action,
-  // local persistence guarantees the trade is removed completely from the UI, calculations, and calendar
   return { ok: true };
 }
 
@@ -564,15 +768,11 @@ export async function resizeImageToMax1600(file: File): Promise<{ base64Data: st
           return;
         }
 
-        // Draw image smoothly
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-        // Convert to JPEG quality 0.85
         const fullDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-        // Remove prefix 'data:image/jpeg;base64,'
         const base64Data = fullDataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
 
         resolve({

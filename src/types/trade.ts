@@ -38,9 +38,12 @@ export interface Trade {
   isTPHit?: boolean;
 }
 
+export type AppMode = 'real' | 'backtest';
+
 export interface TradePayload {
   key: string;
   action?: 'create' | 'update';
+  hoja?: string;
   id?: string;
   trade: {
     ID?: string;

@@ -26,6 +26,8 @@ interface TradeFormModalProps {
   tradeToEdit?: Trade | null;
   onSuccess: () => void;
   onDeleteTrade?: (trade: Trade) => void;
+  hoja?: string;
+  isBacktest?: boolean;
 }
 
 export const TradeFormModal: React.FC<TradeFormModalProps> = ({
@@ -34,7 +36,9 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   ownerKey,
   tradeToEdit = null,
   onSuccess,
-  onDeleteTrade
+  onDeleteTrade,
+  hoja,
+  isBacktest = false
 }) => {
   const isEditing = Boolean(tradeToEdit);
 
@@ -239,6 +243,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       const payload: TradePayload = {
         key: ownerKey.trim(),
         action: isEditing ? 'update' : 'create',
+        hoja: hoja && hoja !== 'Trades' ? hoja.trim() : undefined,
         id: tradeId,
         trade: {
           ID: tradeId,
@@ -261,9 +266,9 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
 
       let res;
       if (isEditing) {
-        res = await updateTradeInAppsScript(payload);
+        res = await updateTradeInAppsScript(payload, hoja);
       } else {
-        res = await postTradeToAppsScript(payload);
+        res = await postTradeToAppsScript(payload, hoja);
       }
 
       if (res.ok) {
@@ -297,12 +302,18 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.08] bg-[#0E1119]/80 shrink-0">
           <div className="flex items-center gap-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${isEditing ? 'bg-[#34C97A]' : 'bg-[#E0B341]'}`} />
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              isEditing ? 'bg-[#34C97A]' : isBacktest ? 'bg-[#C084FC]' : 'bg-[#E0B341]'
+            }`} />
             <h3 className="font-heading text-base sm:text-lg font-bold text-white">
               {isEditing ? `Editar Trade ${tradeToEdit?.id ? `(${tradeToEdit.id})` : ''}` : 'Nuevo Trade'}
             </h3>
-            <span className="text-[10px] sm:text-xs font-mono text-[#E0B341] px-1.5 sm:px-2 py-0.5 rounded bg-[#E0B341]/10 border border-[#E0B341]/20">
-              Modo Dueño
+            <span className={`text-[10px] sm:text-xs font-mono px-1.5 sm:px-2 py-0.5 rounded border ${
+              isBacktest
+                ? 'text-[#C084FC] bg-[#A855F7]/15 border-[#A855F7]/30'
+                : 'text-[#E0B341] bg-[#E0B341]/10 border-[#E0B341]/20'
+            }`}>
+              {isBacktest ? `Backtest: ${hoja || 'Activo'}` : 'Modo Dueño'}
             </span>
           </div>
 
@@ -681,11 +692,15 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-[#E0B341] to-[#C99C2E] text-[#0B0D12] hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#E0B341]/20 disabled:opacity-50 flex items-center gap-1.5"
+                className={`px-6 py-2.5 text-xs font-bold rounded-xl text-white hover:brightness-110 active:scale-95 transition-all shadow-lg disabled:opacity-50 flex items-center gap-1.5 ${
+                  isBacktest
+                    ? 'bg-gradient-to-r from-[#A855F7] to-[#9333EA] text-white shadow-[#A855F7]/25'
+                    : 'bg-gradient-to-r from-[#E0B341] to-[#C99C2E] text-[#0B0D12] shadow-[#E0B341]/20'
+                }`}
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0B0D12]" />
+                    <Loader2 className={`w-3.5 h-3.5 animate-spin ${isBacktest ? 'text-white' : 'text-[#0B0D12]'}`} />
                     <span>{isEditing ? 'Actualizando...' : 'Guardando...'}</span>
                   </>
                 ) : (

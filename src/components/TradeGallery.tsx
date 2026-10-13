@@ -9,6 +9,8 @@ interface TradeGalleryProps {
   onEditTrade?: (trade: Trade) => void;
   onDeleteTrade?: (trade: Trade) => void;
   isOwner: boolean;
+  isBacktest?: boolean;
+  activeBacktestName?: string;
 }
 
 export const TradeGallery: React.FC<TradeGalleryProps> = ({
@@ -17,7 +19,9 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
   onOpenNewTrade,
   onEditTrade,
   onDeleteTrade,
-  isOwner
+  isOwner,
+  isBacktest = false,
+  activeBacktestName = ''
 }) => {
   const [filterResult, setFilterResult] = useState<'ALL' | 'WIN' | 'LOSS'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -107,22 +111,35 @@ export const TradeGallery: React.FC<TradeGalleryProps> = ({
 
       {/* Grid of Trade Cards */}
       {trades.length === 0 ? (
-        <div className="glass-panel rounded-3xl p-10 sm:p-14 text-center border border-white/[0.08] relative overflow-hidden">
-          <div className="w-14 h-14 rounded-2xl bg-[#E0B341]/10 border border-[#E0B341]/25 mx-auto flex items-center justify-center text-[#E0B341] mb-4">
-            <Filter className="w-6 h-6 text-[#E0B341]" />
+        <div className={`glass-panel rounded-3xl p-10 sm:p-14 text-center border relative overflow-hidden transition-all ${
+          isBacktest ? 'border-[#A855F7]/30' : 'border-white/[0.08]'
+        }`}>
+          <div className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4 transition-colors ${
+            isBacktest
+              ? 'bg-[#A855F7]/15 border border-[#A855F7]/30 text-[#C084FC]'
+              : 'bg-[#E0B341]/10 border border-[#E0B341]/25 text-[#E0B341]'
+          }`}>
+            <Filter className={`w-6 h-6 ${isBacktest ? 'text-[#C084FC]' : 'text-[#E0B341]'}`} />
           </div>
           <h3 className="font-heading text-xl sm:text-2xl font-bold text-white tracking-tight">
-            Tu diario está vacío
+            {isBacktest ? 'Este backtest está vacío' : 'Tu diario está vacío'}
           </h3>
           <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto mt-2 mb-6 leading-relaxed">
-            Aún no hay trades registrados en tu Google Sheets. Registra tu primera operación para comenzar a visualizar tus estadísticas cuantitativas y capturas de pantalla.
+            {isBacktest
+              ? `Aún no hay operaciones registradas en ${activeBacktestName || 'este backtest'}. Registra trades históricos para simular y auditar tu estrategia.`
+              : 'Aún no hay trades registrados en tu Google Sheets. Registra tu primera operación para comenzar a visualizar tus estadísticas cuantitativas y capturas de pantalla.'
+            }
           </p>
           {isOwner && onOpenNewTrade && (
             <button
               onClick={onOpenNewTrade}
-              className="px-5 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-[#E0B341] to-[#C99C2E] text-[#0B0D12] hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#E0B341]/20 inline-flex items-center gap-2"
+              className={`px-5 py-2.5 text-xs font-bold rounded-xl text-white hover:brightness-110 active:scale-95 transition-all shadow-lg inline-flex items-center gap-2 ${
+                isBacktest
+                  ? 'bg-gradient-to-r from-[#A855F7] to-[#9333EA] text-white shadow-[#A855F7]/25'
+                  : 'bg-gradient-to-r from-[#E0B341] to-[#C99C2E] text-[#0B0D12] shadow-[#E0B341]/20'
+              }`}
             >
-              <span>+ Registrar mi primer trade</span>
+              <span>{isBacktest ? '+ Registrar primer trade en este backtest' : '+ Registrar mi primer trade'}</span>
             </button>
           )}
         </div>
