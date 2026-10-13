@@ -11,9 +11,11 @@ export interface TradeEvaluation {
 
 /**
  * Unifies parsing of numeric strings in Spanish and English formats (commas and dots).
- * - "2,64183" and "2.64183" -> 2.64183.
- * - If the text has both comma and dot, the LAST of the two is the decimal separator,
- *   and the other is thousands separator ("1.234,56" and "1,234.56" -> 1234.56).
+ * - "2630.00" (TradingView: decimal point, no thousands separator) -> 2630.
+ * - If both comma and dot exist, the LAST one is the decimal separator, and the other is thousands:
+ *   "2,627.92" and "2.627,92" -> 2627.92.
+ * - If only comma exists and after it there are EXACTLY 3 digits ("2,630"), comma is thousands -> 2630.
+ * - If only comma exists and after it there are 1, 2, or more than 3 digits ("2,5" or "2,62792"), comma is decimal -> 2.5 or 2.62792.
  * - Strips whitespace and currency symbols like "$", "€", "£".
  * - If not a valid number, returns null (NEVER NaN).
  */
@@ -28,11 +30,11 @@ export function parseNumero(texto: any): number | null {
   let s = String(texto).trim();
   if (!s) return null;
 
-  // Remove currency symbols, whitespace and non-numeric chars except + - . ,
+  // Quita espacios y símbolos como "$"
   s = s.replace(/[\$\s\u00A0€£]/g, '');
   if (!s) return null;
 
-  // Extract sign
+  // Extrae signo si existe
   let isNegative = false;
   if (s.startsWith('-')) {
     isNegative = true;
@@ -40,36 +42,45 @@ export function parseNumero(texto: any): number | null {
   } else if (s.startsWith('+')) {
     s = s.slice(1);
   }
+  if (!s) return null;
 
   const lastDot = s.lastIndexOf('.');
   const lastComma = s.lastIndexOf(',');
 
   if (lastDot !== -1 && lastComma !== -1) {
-    // Both present: the LAST one is the decimal separator
+    // Si hay punto y coma a la vez, el último de los dos es el decimal y el otro es separador de miles
+    // ("2,627.92" y "2.627,92" -> 2627.92)
     if (lastDot > lastComma) {
-      // Dot is decimal, comma is thousands
+      // Punto es decimal, coma es de miles ("2,627.92" -> 2627.92)
       s = s.replace(/,/g, '');
     } else {
-      // Comma is decimal, dot is thousands
+      // Coma es decimal, punto es de miles ("2.627,92" -> 2627.92)
       s = s.replace(/\./g, '').replace(/,/g, '.');
     }
   } else if (lastComma !== -1) {
-    // Only comma present
+    // Solo hay coma
     const commaCount = (s.match(/,/g) || []).length;
     if (commaCount === 1) {
-      // Single comma is decimal separator (e.g. "2,64183")
-      s = s.replace(',', '.');
+      const parts = s.split(',');
+      // Si solo hay coma y después de ella hay EXACTAMENTE 3 dígitos ("2,630"), la coma es de miles -> 2630.
+      // Si solo hay coma y después hay 1, 2 o más de 3 dígitos ("2,5" o "2,62792"), la coma es decimal.
+      if (parts[1].length === 3 && /^\d{3}$/.test(parts[1])) {
+        s = parts[0] + parts[1];
+      } else {
+        s = parts[0] + '.' + parts[1];
+      }
     } else {
-      // Multiple commas are thousands separators (e.g. "1,000,000")
+      // Múltiples comas ("1,000,000") -> separadores de miles
       s = s.replace(/,/g, '');
     }
   } else if (lastDot !== -1) {
-    // Only dot present
+    // Solo hay punto
     const dotCount = (s.match(/\./g) || []).length;
     if (dotCount > 1) {
-      // Multiple dots are European thousands separators (e.g. "1.000.000")
+      // Múltiples puntos son separadores de miles ("1.000.000")
       s = s.replace(/\./g, '');
     }
+    // Si solo hay un punto ("2630.00"), se mantiene intacto como decimal
   }
 
   const num = Number(s);
@@ -148,7 +159,10 @@ export function normalizeDateToYYYYMMDD(rawDate: string | number | Date | null |
 
 /**
  * Evaluates trade outcome based on BUY / SELL direction, Entry, Exit, SL, and TP.
- * Uses parseNumero to safely parse all numeric arguments.
+ * Reglas de estado:
+ * - Buy: SALIDA >= TP es "Salió en TP" (ganador); SALIDA <= SL es "Salió en SL" (perdedor); si no, salida manual.
+ * - Sell: SALIDA <= TP es "Salió en TP"; SALIDA >= SL es "Salió en SL"; si no, salida manual.
+ * - R real = (SALIDA - ENTRADA) × (1 si Buy, -1 si Sell) / |ENTRADA - SL|.
  */
 export function evaluateTradeOutcome(params: {
   direccion: 'Buy' | 'Sell';
@@ -185,48 +199,40 @@ export function evaluateTradeOutcome(params: {
     };
   }
 
-  // Dynamic tolerance: 0.5% of risk or 1e-5
-  const tolerance = risk > 0 ? Math.min(0.05, Math.max(1e-5, risk * 0.005)) : 1e-5;
+  // Tolerancia mínima por precisión de punto flotante en IEEE 754
+  const EPSILON = 1e-6;
 
-  // Directional price differences
-  // In Buy: positive difference means profit, negative means loss
-  // In Sell: positive difference means profit, negative means loss
-  const priceDiff = direccion === 'Buy' ? salidaNum - entradaNum : entradaNum - salidaNum;
-
-  // Directional checks for TP and SL
   let isTPHit = false;
   let isSLHit = false;
 
+  // Comprobación de TP / SL según la dirección
   if (direccion === 'Buy') {
-    // In Buy: TP is above entry, SL is below entry
-    if (salidaNum >= tpNum || Math.abs(salidaNum - tpNum) <= tolerance) {
+    // Buy: SALIDA >= TP es "Salió en TP" (ganador); SALIDA <= SL es "Salió en SL" (perdedor)
+    if (salidaNum >= tpNum - EPSILON) {
       isTPHit = true;
-    } else if (salidaNum <= slNum || Math.abs(salidaNum - slNum) <= tolerance) {
+    } else if (salidaNum <= slNum + EPSILON) {
       isSLHit = true;
     }
   } else {
-    // In Sell: TP is below entry, SL is above entry
-    if (salidaNum <= tpNum || Math.abs(salidaNum - tpNum) <= tolerance) {
+    // Sell: SALIDA <= TP es "Salió en TP"; SALIDA >= SL es "Salió en SL"
+    if (salidaNum <= tpNum + EPSILON) {
       isTPHit = true;
-    } else if (salidaNum >= slNum || Math.abs(salidaNum - slNum) <= tolerance) {
+    } else if (salidaNum >= slNum - EPSILON) {
       isSLHit = true;
     }
   }
 
-  // Realized R calculation
+  // R real = (SALIDA - ENTRADA) × (1 si Buy, -1 si Sell) / |ENTRADA - SL|
   let rReal: number | null = null;
   if (risk > 0) {
-    if (isTPHit && Math.abs(salidaNum - tpNum) <= tolerance) {
-      rReal = Math.round((reward / risk) * 100) / 100;
-    } else if (isSLHit && Math.abs(salidaNum - slNum) <= tolerance) {
-      rReal = -1;
-    } else {
-      const calcR = priceDiff / risk;
-      if (!isNaN(calcR) && isFinite(calcR)) {
-        rReal = Math.round(calcR * 100) / 100;
-      }
+    const directionMultiplier = direccion === 'Buy' ? 1 : -1;
+    const calcR = ((salidaNum - entradaNum) * directionMultiplier) / risk;
+    if (!isNaN(calcR) && isFinite(calcR)) {
+      rReal = Math.round(calcR * 100) / 100;
     }
   }
+
+  const priceDiff = direccion === 'Buy' ? salidaNum - entradaNum : entradaNum - salidaNum;
 
   let outcome: 'WIN' | 'LOSS' | 'BREAKEVEN';
   let calculatedMoney = rawMoney;
@@ -236,28 +242,28 @@ export function evaluateTradeOutcome(params: {
   if (isTPHit) {
     outcome = 'WIN';
     calculatedMoney = absMoney > 0 ? absMoney : 100;
-    statusLabel = 'Ganador (Salió en TP)';
-    explanation = `En ${direccion}, el precio de salida (${formatPrice(salidaNum)}) alcanzó el TP (${formatPrice(tpNum)}). Trade ganador.`;
+    statusLabel = 'Salió en TP';
+    explanation = `En ${direccion}, la salida (${formatPrice(salidaNum)}) alcanzó el TP (${formatPrice(tpNum)}). Trade ganador.`;
   } else if (isSLHit) {
     outcome = 'LOSS';
     calculatedMoney = absMoney > 0 ? -absMoney : -100;
-    statusLabel = 'Perdedor (Salió en SL)';
-    explanation = `En ${direccion}, el precio de salida (${formatPrice(salidaNum)}) alcanzó el SL (${formatPrice(slNum)}). Trade perdedor.`;
-  } else if (Math.abs(priceDiff) <= tolerance) {
+    statusLabel = 'Salió en SL';
+    explanation = `En ${direccion}, la salida (${formatPrice(salidaNum)}) alcanzó el SL (${formatPrice(slNum)}). Trade perdedor.`;
+  } else if (Math.abs(priceDiff) <= EPSILON) {
     outcome = 'BREAKEVEN';
     calculatedMoney = 0;
-    statusLabel = 'Breakeven (0)';
-    explanation = `En ${direccion}, la salida (${formatPrice(salidaNum)}) coincide con la entrada (${formatPrice(entradaNum)}).`;
+    statusLabel = 'Salida manual';
+    explanation = `En ${direccion}, la salida manual (${formatPrice(salidaNum)}) coincide con la entrada (Breakeven).`;
   } else if (priceDiff > 0) {
     outcome = 'WIN';
     calculatedMoney = absMoney > 0 ? absMoney : 0;
-    statusLabel = 'Ganador (Cierre manual)';
-    explanation = `En ${direccion}, la salida (${formatPrice(salidaNum)}) generó ganancia a favor.`;
+    statusLabel = 'Salida manual';
+    explanation = `En ${direccion}, la salida manual (${formatPrice(salidaNum)}) cerró a favor con ganancia.`;
   } else {
     outcome = 'LOSS';
     calculatedMoney = absMoney > 0 ? -absMoney : 0;
-    statusLabel = 'Perdedor (Cierre manual)';
-    explanation = `En ${direccion}, la salida (${formatPrice(salidaNum)}) generó pérdida en contra.`;
+    statusLabel = 'Salida manual';
+    explanation = `En ${direccion}, la salida manual (${formatPrice(salidaNum)}) cerró en contra con pérdida.`;
   }
 
   return {

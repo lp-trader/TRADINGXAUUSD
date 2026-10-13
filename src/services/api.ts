@@ -512,11 +512,11 @@ export async function postTradeToAppsScript(
 
   const sanitizedTrade = {
     ...payload.trade,
-    ENTRADA: entradaNum,
-    SALIDA: salidaNum !== null ? salidaNum : entradaNum,
-    SL: slNum,
-    TP: tpNum,
-    MONEY: moneyNum
+    ENTRADA: Number(entradaNum),
+    SALIDA: Number(salidaNum !== null ? salidaNum : entradaNum),
+    SL: Number(slNum),
+    TP: Number(tpNum),
+    MONEY: Number(moneyNum)
   };
 
   const bodyPayload: any = {
@@ -629,11 +629,11 @@ export async function updateTradeInAppsScript(
   const sanitizedTrade = {
     ...payload.trade,
     ID: tradeId,
-    ENTRADA: entradaNum,
-    SALIDA: salidaNum !== null ? salidaNum : entradaNum,
-    SL: slNum,
-    TP: tpNum,
-    MONEY: evaluation.calculatedMoney
+    ENTRADA: Number(entradaNum),
+    SALIDA: Number(salidaNum !== null ? salidaNum : entradaNum),
+    SL: Number(slNum),
+    TP: Number(tpNum),
+    MONEY: Number(evaluation.calculatedMoney)
   };
 
   const bodyPayload: any = {

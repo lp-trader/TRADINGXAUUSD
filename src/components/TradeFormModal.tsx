@@ -131,14 +131,18 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
     });
   }, [isOpen, direccion, numEntrada, numSalida, numSl, numTp, numMoney]);
 
-  // Normalizes input on blur to standard dot format e.g. "2,64183" -> "2.64183"
-  const handleNormalizeOnBlur = (val: string, setter: (normalized: string) => void) => {
-    if (!val || !val.trim()) return;
-    const parsed = parseNumero(val);
-    if (parsed !== null) {
-      setter(String(parsed));
-    }
-  };
+  // Validación: si entre ENTRADA, SALIDA, SL y TP hay un valor que difiere más de 50% de los demás
+  const hasPriceFormatWarning = useMemo(() => {
+    const prices = [numEntrada, numSalida, numSl, numTp].filter((v): v is number => v !== null && v > 0);
+    if (prices.length < 2) return false;
+
+    const sorted = [...prices].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    if (median <= 0) return false;
+
+    return sorted.some((p) => Math.abs(p - median) / median > 0.5);
+  }, [numEntrada, numSalida, numSl, numTp]);
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -270,11 +274,11 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
           FECHA: fecha,
           ACTIVO: activo.toUpperCase().trim() || 'XAU/USD',
           DIRECCION: direccion,
-          ENTRADA: finalEntrada,
-          SALIDA: finalSalida !== null ? finalSalida : finalEntrada,
-          SL: finalSl,
-          TP: finalTp,
-          MONEY: finalMoney,
+          ENTRADA: Number(finalEntrada),
+          SALIDA: Number(finalSalida !== null ? finalSalida : finalEntrada),
+          SL: Number(finalSl),
+          TP: Number(finalTp),
+          MONEY: Number(finalMoney),
           SETUP: setup.trim() || 'General',
           SESION: sesion,
           EMOTION: emotion,
@@ -453,8 +457,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={entrada}
                   onChange={(e) => setEntrada(e.target.value)}
-                  onBlur={() => handleNormalizeOnBlur(entrada, setEntrada)}
-                  placeholder="2.62792"
+                  placeholder="2627.92 o 2,627.92"
                   className="w-full bg-white/[0.04] text-sm text-white px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
                   required
                 />
@@ -467,8 +470,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={salida}
                   onChange={(e) => setSalida(e.target.value)}
-                  onBlur={() => handleNormalizeOnBlur(salida, setSalida)}
-                  placeholder="2.64183"
+                  placeholder="2641.83 o 2,641.83"
                   className="w-full bg-white/[0.04] text-sm text-[#E0B341] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
                   required
                 />
@@ -481,8 +483,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={sl}
                   onChange={(e) => setSl(e.target.value)}
-                  onBlur={() => handleNormalizeOnBlur(sl, setSl)}
-                  placeholder="2.62329"
+                  placeholder="2623.29 o 2,623.29"
                   className="w-full bg-white/[0.04] text-sm text-[#FF6B60] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#FF6B60]"
                   required
                 />
@@ -495,8 +496,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={tp}
                   onChange={(e) => setTp(e.target.value)}
-                  onBlur={() => handleNormalizeOnBlur(tp, setTp)}
-                  placeholder="2.64183"
+                  placeholder="2641.83 o 2,641.83"
                   className="w-full bg-white/[0.04] text-sm text-[#34C97A] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#34C97A]"
                   required
                 />
@@ -521,7 +521,6 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={money}
                   onChange={(e) => setMoney(e.target.value)}
-                  onBlur={() => handleNormalizeOnBlur(money, setMoney)}
                   placeholder="+300 o -100"
                   className={`w-full bg-white/[0.04] text-sm font-bold px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none ${
                     numMoney === null
@@ -537,8 +536,16 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
               </div>
             </div>
 
+            {/* 4. Aviso de validación (diferencia > 50% entre precios) */}
+            {hasPriceFormatWarning && (
+              <div className="p-3 rounded-xl bg-[#E0B341]/15 border border-[#E0B341]/30 text-xs text-[#E0B341] flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#E0B341]" />
+                <span className="font-medium">Revisa el formato de los precios</span>
+              </div>
+            )}
+
             {/* Smart calculation banner */}
-            {liveEvaluation && (
+            {liveEvaluation ? (
               <div className={`p-3 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
                 liveEvaluation.outcome === 'WIN'
                   ? 'bg-[#34C97A]/10 border-[#34C97A]/30 text-[#34C97A]'
@@ -555,11 +562,26 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                     <ArrowRightLeft className="w-4 h-4 shrink-0" />
                   )}
                   <div>
-                    <span className="font-bold">
-                      {liveEvaluation.statusLabel}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold">
+                        {liveEvaluation.statusLabel}
+                      </span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                        liveEvaluation.outcome === 'WIN'
+                          ? 'bg-[#34C97A]/20 text-[#34C97A]'
+                          : liveEvaluation.outcome === 'LOSS'
+                            ? 'bg-[#FF6B60]/20 text-[#FF6B60]'
+                            : 'bg-neutral-500/20 text-neutral-300'
+                      }`}>
+                        {liveEvaluation.outcome === 'WIN' ? 'Ganador' : liveEvaluation.outcome === 'LOSS' ? 'Perdedor' : 'Breakeven'}
+                      </span>
+                    </div>
                     <p className="text-[11px] opacity-90 font-mono mt-0.5">
                       {liveEvaluation.explanation}
+                    </p>
+                    {/* 5. TEMPORAL: debajo del mensaje de estado, muestra en letra pequeña los valores interpretados */}
+                    <p className="text-[10px] text-neutral-400 font-mono mt-1 opacity-90">
+                      entrada={numEntrada !== null ? numEntrada : '…'} salida={numSalida !== null ? numSalida : '…'} sl={numSl !== null ? numSl : '…'} tp={numTp !== null ? numTp : '…'} dirección={direccion}
                     </p>
                   </div>
                 </div>
@@ -577,7 +599,11 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   )}
                 </div>
               </div>
-            )}
+            ) : (numEntrada !== null || numSalida !== null || numSl !== null || numTp !== null) ? (
+              <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[10px] text-neutral-400 font-mono">
+                entrada={numEntrada !== null ? numEntrada : '…'} salida={numSalida !== null ? numSalida : '…'} sl={numSl !== null ? numSl : '…'} tp={numTp !== null ? numTp : '…'} dirección={direccion}
+              </div>
+            ) : null}
           </div>
 
           {/* 9. SETUP, 10. SESION, 11. EMOTION */}
