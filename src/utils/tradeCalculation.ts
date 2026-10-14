@@ -11,13 +11,13 @@ export interface TradeEvaluation {
 
 /**
  * Unifies parsing of numeric strings in Spanish and English formats (commas and dots).
- * - "2630.00" (TradingView: decimal point, no thousands separator) -> 2630.
- * - If both comma and dot exist, the LAST one is the decimal separator, and the other is thousands:
- *   "2,627.92" and "2.627,92" -> 2627.92.
- * - If only comma exists and after it there are EXACTLY 3 digits ("2,630"), comma is thousands -> 2630.
- * - If only comma exists and after it there are 1, 2, or more than 3 digits ("2,5" or "2,62792"), comma is decimal -> 2.5 or 2.62792.
- * - Strips whitespace and currency symbols like "$", "€", "£".
- * - If not a valid number, returns null (NEVER NaN).
+ * Reglas en este orden estricto:
+ * 1. Quita espacios y símbolos como "$".
+ * 2. Si el texto contiene un punto ".", ese punto es el decimal y TODAS las comas son separadores de miles: se eliminan.
+ *    "2,670.88" -> 2670.88. "4152.82" -> 4152.82.
+ * 3. Si NO hay punto y hay una coma seguida de exactamente 3 dígitos ("2,630"), la coma es de miles -> 2630.
+ * 4. Si NO hay punto y hay una coma seguida de cualquier otra cantidad de dígitos ("4152,82"), la coma es decimal -> 4152.82.
+ * 5. Si no es un número válido, devuelve null (nunca NaN).
  */
 export function parseNumero(texto: any): number | null {
   if (texto === null || texto === undefined) return null;
@@ -30,7 +30,7 @@ export function parseNumero(texto: any): number | null {
   let s = String(texto).trim();
   if (!s) return null;
 
-  // Quita espacios y símbolos como "$"
+  // 1. Quita espacios y símbolos como "$" (y monedas comunes)
   s = s.replace(/[\$\s\u00A0€£]/g, '');
   if (!s) return null;
 
@@ -44,45 +44,29 @@ export function parseNumero(texto: any): number | null {
   }
   if (!s) return null;
 
-  const lastDot = s.lastIndexOf('.');
-  const lastComma = s.lastIndexOf(',');
-
-  if (lastDot !== -1 && lastComma !== -1) {
-    // Si hay punto y coma a la vez, el último de los dos es el decimal y el otro es separador de miles
-    // ("2,627.92" y "2.627,92" -> 2627.92)
-    if (lastDot > lastComma) {
-      // Punto es decimal, coma es de miles ("2,627.92" -> 2627.92)
-      s = s.replace(/,/g, '');
-    } else {
-      // Coma es decimal, punto es de miles ("2.627,92" -> 2627.92)
-      s = s.replace(/\./g, '').replace(/,/g, '.');
-    }
-  } else if (lastComma !== -1) {
-    // Solo hay coma
+  // 2. Si el texto contiene un punto ".", ese punto es el decimal y TODAS las comas son separadores de miles: se eliminan.
+  if (s.includes('.')) {
+    s = s.replace(/,/g, '');
+  } else if (s.includes(',')) {
+    // 3. Si NO hay punto y hay una coma seguida de exactamente 3 dígitos ("2,630"), la coma es de miles -> 2630.
+    // 4. Si NO hay punto y hay una coma seguida de cualquier otra cantidad de dígitos ("4152,82"), la coma es decimal -> 4152.82.
     const commaCount = (s.match(/,/g) || []).length;
     if (commaCount === 1) {
       const parts = s.split(',');
-      // Si solo hay coma y después de ella hay EXACTAMENTE 3 dígitos ("2,630"), la coma es de miles -> 2630.
-      // Si solo hay coma y después hay 1, 2 o más de 3 dígitos ("2,5" o "2,62792"), la coma es decimal.
       if (parts[1].length === 3 && /^\d{3}$/.test(parts[1])) {
+        // La coma es de miles ("2,630" -> 2630)
         s = parts[0] + parts[1];
       } else {
+        // La coma es decimal ("4152,82" -> 4152.82 o "2,5" -> 2.5)
         s = parts[0] + '.' + parts[1];
       }
     } else {
-      // Múltiples comas ("1,000,000") -> separadores de miles
+      // Múltiples comas sin punto ("1,000,000") -> todas son de miles
       s = s.replace(/,/g, '');
     }
-  } else if (lastDot !== -1) {
-    // Solo hay punto
-    const dotCount = (s.match(/\./g) || []).length;
-    if (dotCount > 1) {
-      // Múltiples puntos son separadores de miles ("1.000.000")
-      s = s.replace(/\./g, '');
-    }
-    // Si solo hay un punto ("2630.00"), se mantiene intacto como decimal
   }
 
+  // 5. Si no es un número válido, devuelve null (nunca NaN).
   const num = Number(s);
   if (isNaN(num) || !isFinite(num)) {
     return null;

@@ -143,6 +143,15 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
 
     return sorted.some((p) => Math.abs(p - median) / median > 0.5);
   }, [numEntrada, numSalida, numSl, numTp]);
+ 
+  // 5. Al salir de un campo, déjalo normalizado con punto decimal (ejemplo: "2,670.88" se muestra como 2670.88)
+  const handleNormalizeOnBlur = (val: string, setter: (normalized: string) => void) => {
+    if (!val || !val.trim()) return;
+    const parsed = parseNumero(val);
+    if (parsed !== null) {
+      setter(String(parsed));
+    }
+  };
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -457,6 +466,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={entrada}
                   onChange={(e) => setEntrada(e.target.value)}
+                  onBlur={() => handleNormalizeOnBlur(entrada, setEntrada)}
                   placeholder="2627.92 o 2,627.92"
                   className="w-full bg-white/[0.04] text-sm text-white px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
                   required
@@ -470,6 +480,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={salida}
                   onChange={(e) => setSalida(e.target.value)}
+                  onBlur={() => handleNormalizeOnBlur(salida, setSalida)}
                   placeholder="2641.83 o 2,641.83"
                   className="w-full bg-white/[0.04] text-sm text-[#E0B341] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
                   required
@@ -483,6 +494,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={sl}
                   onChange={(e) => setSl(e.target.value)}
+                  onBlur={() => handleNormalizeOnBlur(sl, setSl)}
                   placeholder="2623.29 o 2,623.29"
                   className="w-full bg-white/[0.04] text-sm text-[#FF6B60] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#FF6B60]"
                   required
@@ -496,6 +508,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={tp}
                   onChange={(e) => setTp(e.target.value)}
+                  onBlur={() => handleNormalizeOnBlur(tp, setTp)}
                   placeholder="2641.83 o 2,641.83"
                   className="w-full bg-white/[0.04] text-sm text-[#34C97A] px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#34C97A]"
                   required
@@ -521,6 +534,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
                   inputMode="decimal"
                   value={money}
                   onChange={(e) => setMoney(e.target.value)}
+                  onBlur={() => handleNormalizeOnBlur(money, setMoney)}
                   placeholder="+300 o -100"
                   className={`w-full bg-white/[0.04] text-sm font-bold px-3 py-2 rounded-xl border border-white/[0.08] font-mono focus:outline-none ${
                     numMoney === null
