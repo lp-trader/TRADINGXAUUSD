@@ -36,6 +36,7 @@ import { TradeFormModal } from './components/TradeFormModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
 import { NewBacktestModal } from './components/NewBacktestModal';
 import { useScreenMode } from './hooks/useScreenMode';
+import { detectStudyYear, setStoredStudyYear } from './utils/backtestDateUtils';
 
 import { Loader2, AlertCircle, RefreshCw, Trash2, FlaskConical, Plus } from 'lucide-react';
 
@@ -49,6 +50,9 @@ export default function App() {
   // Backtest Sheets State
   const [backtestSheets, setBacktestSheets] = useState<string[]>([]);
   const [activeBacktest, setActiveBacktest] = useState<string>(() => getStoredActiveBacktest());
+  const [studyYear, setStudyYear] = useState<number>(() =>
+    detectStudyYear(getStoredActiveBacktest(), [])
+  );
   const [isLoadingSheets, setIsLoadingSheets] = useState<boolean>(false);
   const [isNewBacktestOpen, setIsNewBacktestOpen] = useState<boolean>(false);
 
@@ -180,11 +184,29 @@ export default function App() {
     }
   };
 
+  // Keep studyYear in sync whenever activeBacktest or trades change
+  useEffect(() => {
+    if (isBacktest && activeBacktest) {
+      const detected = detectStudyYear(activeBacktest, trades);
+      setStudyYear(detected);
+    }
+  }, [activeBacktest, trades, isBacktest]);
+
+  const handleChangeStudyYear = (year: number) => {
+    setStudyYear(year);
+    if (activeBacktest) {
+      setStoredStudyYear(activeBacktest, year);
+      showToast(`Año de estudio para "${activeBacktest}" fijado en ${year}`);
+    }
+  };
+
   // Active Backtest sheet change handler
   const handleChangeActiveBacktest = (sheet: string) => {
     if (sheet === activeBacktest) return;
     setActiveBacktest(sheet);
     setStoredActiveBacktest(sheet);
+    const yr = detectStudyYear(sheet, []);
+    setStudyYear(yr);
     setSelectedTrade(null);
     setTradeToEdit(null);
     setTradeToDelete(null);
@@ -193,12 +215,15 @@ export default function App() {
   };
 
   // Backtest created success handler
-  const handleBacktestCreated = (newSheetName: string) => {
+  const handleBacktestCreated = (newSheetName: string, chosenYear?: number) => {
     setBacktestSheets((prev) => Array.from(new Set([...prev, newSheetName])));
     setActiveBacktest(newSheetName);
     setStoredActiveBacktest(newSheetName);
+    const yr = chosenYear || detectStudyYear(newSheetName, []);
+    setStoredStudyYear(newSheetName, yr);
+    setStudyYear(yr);
     setTrades([]);
-    showToast(`¡Pestaña "${newSheetName}" creada y seleccionada!`);
+    showToast(`¡Pestaña "${newSheetName}" (Año ${yr}) creada y seleccionada!`);
     loadTrades(newSheetName);
   };
 
@@ -335,6 +360,8 @@ export default function App() {
         activeBacktest={activeBacktest}
         onChangeActiveBacktest={handleChangeActiveBacktest}
         onOpenNewBacktest={() => setIsNewBacktestOpen(true)}
+        studyYear={studyYear}
+        onChangeStudyYear={handleChangeStudyYear}
       />
 
       {/* Main Content */}
@@ -420,6 +447,7 @@ export default function App() {
               metrics={metrics} 
               isBacktest={isBacktest} 
               activeBacktestName={activeBacktest}
+              studyYear={studyYear}
             />
 
             {/* 1.5. Calendario de Resultados */}
@@ -431,6 +459,7 @@ export default function App() {
               isOwner={isOwner}
               screenMode={screenInfo.mode}
               isBacktest={isBacktest}
+              studyYear={studyYear}
             />
 
             {/* 2. Equity Curve */}
@@ -483,6 +512,9 @@ export default function App() {
         onDeleteTrade={handleRequestDeleteTrade}
         hoja={currentSheet}
         isBacktest={isBacktest}
+        studyYear={studyYear}
+        trades={trades}
+        onUpdateStudyYear={handleChangeStudyYear}
       />
 
       {/* New Backtest Creation Modal */}

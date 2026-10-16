@@ -6,6 +6,7 @@ interface HeroStatsProps {
   metrics: DashboardMetrics;
   isBacktest?: boolean;
   activeBacktestName?: string;
+  studyYear?: number;
 }
 
 function useAnimatedNumber(target: number, duration: number = 1000, shouldAnimate: boolean = true): number {
@@ -45,7 +46,8 @@ function useAnimatedNumber(target: number, duration: number = 1000, shouldAnimat
 export const HeroStats: React.FC<HeroStatsProps> = ({ 
   metrics, 
   isBacktest = false, 
-  activeBacktestName = '' 
+  activeBacktestName = '',
+  studyYear
 }) => {
   const hasTrades = Boolean(metrics && metrics.totalTrades > 0);
   const netProfitValue = !isNaN(metrics?.netProfit) ? metrics.netProfit : 0;
@@ -89,6 +91,14 @@ export const HeroStats: React.FC<HeroStatsProps> = ({
                 </span>
                 <span aria-hidden="true" className="text-neutral-500">·</span>
                 <span className="text-white font-semibold">{activeBacktestName || 'Backtest'}</span>
+                {studyYear && (
+                  <>
+                    <span aria-hidden="true" className="text-neutral-500">·</span>
+                    <span className="text-[#C084FC] font-mono font-bold px-2 py-0.5 rounded-lg bg-[#A855F7]/10 border border-[#A855F7]/25">
+                      Año {studyYear}
+                    </span>
+                  </>
+                )}
                 <span aria-hidden="true" className="text-neutral-500">·</span>
                 <span className="text-[#C084FC] flex items-center gap-1 font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#C084FC] animate-pulse" />

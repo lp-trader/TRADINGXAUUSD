@@ -27,6 +27,7 @@ interface TradingCalendarProps {
   isOwner?: boolean;
   screenMode?: 'phone' | 'tablet' | 'pc';
   isBacktest?: boolean;
+  studyYear?: number;
 }
 
 const MONTH_NAMES = [
@@ -73,7 +74,8 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
   onDeleteTrade,
   isOwner = false,
   screenMode = 'pc',
-  isBacktest = false
+  isBacktest = false,
+  studyYear
 }) => {
   const isPhone = screenMode === 'phone';
   const [calendarViewMode, setCalendarViewMode] = useState<'grid' | 'list'>('grid');
@@ -107,24 +109,30 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
     return null;
   }, [trades]);
 
-  // Initial month/year: most recent trade if available, else today
+  // Initial month/year: most recent trade if available, else studyYear in backtest mode, else today
   const initialYearMonth = useMemo(() => {
     if (latestTradeInfo) {
       return { year: latestTradeInfo.year, month: latestTradeInfo.month };
     }
+    if (isBacktest && studyYear) {
+      return { year: studyYear, month: 1 };
+    }
     return { year: todayYear, month: todayMonth };
-  }, [latestTradeInfo, todayYear, todayMonth]);
+  }, [latestTradeInfo, isBacktest, studyYear, todayYear, todayMonth]);
 
   const [viewYear, setViewYear] = useState<number>(initialYearMonth.year);
   const [viewMonth, setViewMonth] = useState<number>(initialYearMonth.month);
 
-  // Auto-sync calendar view to the most recent trade when trades change
+  // Auto-sync calendar view to the most recent trade or study year when backtest changes
   useEffect(() => {
     if (latestTradeInfo) {
       setViewYear(latestTradeInfo.year);
       setViewMonth(latestTradeInfo.month);
+    } else if (isBacktest && studyYear) {
+      setViewYear(studyYear);
+      setViewMonth(1);
     }
-  }, [latestTradeInfo]);
+  }, [latestTradeInfo, isBacktest, studyYear]);
 
   // Modal for day's trades details
   const [activeDayModal, setActiveDayModal] = useState<{
@@ -395,6 +403,20 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
             </button>
           )}
 
+          {isBacktest && studyYear && viewYear !== studyYear && (
+            <button
+              onClick={() => {
+                setViewYear(studyYear);
+                setViewMonth(1);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#A855F7]/15 hover:bg-[#A855F7]/25 text-[#C084FC] border border-[#A855F7]/30 transition-all"
+              title={`Ir al año del backtest (${studyYear})`}
+            >
+              <CalendarIcon className="w-3.5 h-3.5 text-[#C084FC]" />
+              <span>Año {studyYear}</span>
+            </button>
+          )}
+
           <button
             onClick={handleGoToToday}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-200 hover:text-white border border-white/[0.08] transition-all"
@@ -588,6 +610,20 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5 text-[#E0B341]" />
               <span className="hidden xs:inline">Ver</span> <span>{MONTH_NAMES[latestTradeInfo.month - 1].slice(0, 3)} {latestTradeInfo.year}</span>
+            </button>
+          )}
+
+          {isBacktest && studyYear && viewYear !== studyYear && (
+            <button
+              onClick={() => {
+                setViewYear(studyYear);
+                setViewMonth(1);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-xl bg-[#A855F7]/15 hover:bg-[#A855F7]/25 text-[#C084FC] border border-[#A855F7]/30 transition-all"
+              title={`Ir al año del backtest (${studyYear})`}
+            >
+              <CalendarIcon className="w-3.5 h-3.5 text-[#C084FC]" />
+              <span>Año {studyYear}</span>
             </button>
           )}
 

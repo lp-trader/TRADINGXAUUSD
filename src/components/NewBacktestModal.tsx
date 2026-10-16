@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createBacktestSheet } from '../services/api';
-import { X, Plus, Loader2, FlaskConical, AlertCircle, Key } from 'lucide-react';
+import { detectYearFromText } from '../utils/backtestDateUtils';
+import { X, Plus, Loader2, FlaskConical, AlertCircle, Key, Calendar } from 'lucide-react';
 
 interface NewBacktestModalProps {
   isOpen: boolean;
   onClose: () => void;
   ownerKey: string;
-  onSuccess: (newSheetName: string) => void;
+  onSuccess: (newSheetName: string, chosenYear?: number) => void;
   onNeedAuth?: () => void;
 }
 
@@ -17,10 +18,22 @@ export const NewBacktestModal: React.FC<NewBacktestModalProps> = ({
   onSuccess,
   onNeedAuth
 }) => {
+  const currentYear = new Date().getFullYear();
+  const defaultYear = currentYear > 2024 ? currentYear - 1 : currentYear;
+
   const [nameInput, setNameInput] = useState('');
+  const [yearInput, setYearInput] = useState<number>(defaultYear);
   const [customKey, setCustomKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-detect year when user types in the name
+  useEffect(() => {
+    const detected = detectYearFromText(nameInput);
+    if (detected) {
+      setYearInput(detected);
+    }
+  }, [nameInput]);
 
   if (!isOpen) return null;
 
@@ -53,7 +66,7 @@ export const NewBacktestModal: React.FC<NewBacktestModalProps> = ({
       const result = await createBacktestSheet(cleanName, effectiveKey.trim());
       if (result.ok && result.hoja) {
         setNameInput('');
-        onSuccess(result.hoja);
+        onSuccess(result.hoja, yearInput);
         onClose();
       } else {
         setError(result.error || 'No se pudo crear la pestaña de backtest en Google Sheets.');
@@ -125,6 +138,30 @@ export const NewBacktestModal: React.FC<NewBacktestModalProps> = ({
             />
             <p className="text-[11px] text-neutral-400 mt-1.5 font-mono">
               Se creará la pestaña: <span className="text-[#C084FC] font-semibold">{previewSheetName}</span>
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-300 mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-[#C084FC]" />
+                Año de estudio
+              </span>
+              <span className="text-[10px] text-neutral-400 font-normal">
+                Facilita la fecha al registrar trades
+              </span>
+            </label>
+            <input
+              type="number"
+              min={1990}
+              max={2099}
+              value={yearInput}
+              onChange={(e) => setYearInput(parseInt(e.target.value, 10) || defaultYear)}
+              className="w-full px-4 py-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.1] focus:border-[#A855F7] focus:outline-none text-white font-mono text-sm transition-colors"
+              disabled={isLoading}
+            />
+            <p className="text-[11px] text-neutral-500 mt-1">
+              Al registrar o editar trades en este backtest, el formulario se abrirá automáticamente en este año.
             </p>
           </div>
 

@@ -11,7 +11,8 @@ import {
   ChevronDown, 
   Check, 
   FlaskConical, 
-  Activity 
+  Activity,
+  Calendar
 } from 'lucide-react';
 import { ScreenInfo, ScreenMode } from '../hooks/useScreenMode';
 import { AppMode } from '../types/trade';
@@ -34,6 +35,8 @@ interface HeaderProps {
   activeBacktest: string;
   onChangeActiveBacktest: (sheet: string) => void;
   onOpenNewBacktest: () => void;
+  studyYear?: number;
+  onChangeStudyYear?: (year: number) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -49,7 +52,9 @@ export const Header: React.FC<HeaderProps> = ({
   backtestSheets,
   activeBacktest,
   onChangeActiveBacktest,
-  onOpenNewBacktest
+  onOpenNewBacktest,
+  studyYear,
+  onChangeStudyYear
 }) => {
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -368,23 +373,51 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
 
               {backtestSheets.length > 0 ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[11px] text-neutral-400 font-medium hidden sm:inline">Pestaña activa:</span>
-                  <div className="relative">
-                    <select
-                      value={activeBacktest}
-                      onChange={(e) => onChangeActiveBacktest(e.target.value)}
-                      className="appearance-none bg-black/50 hover:bg-black/70 text-white text-xs font-semibold pl-3 pr-8 py-1.5 rounded-xl border border-[#A855F7]/40 focus:outline-none focus:border-[#C084FC] cursor-pointer transition-colors"
-                    >
-                      {backtestSheets.map((sheet) => (
-                        <option key={sheet} value={sheet} className="bg-[#12151D] text-white">
-                          {sheet}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-[#C084FC] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[11px] text-neutral-400 font-medium hidden sm:inline">Pestaña activa:</span>
+                    <div className="relative">
+                      <select
+                        value={activeBacktest}
+                        onChange={(e) => onChangeActiveBacktest(e.target.value)}
+                        className="appearance-none bg-black/50 hover:bg-black/70 text-white text-xs font-semibold pl-3 pr-8 py-1.5 rounded-xl border border-[#A855F7]/40 focus:outline-none focus:border-[#C084FC] cursor-pointer transition-colors"
+                      >
+                        {backtestSheets.map((sheet) => (
+                          <option key={sheet} value={sheet} className="bg-[#12151D] text-white">
+                            {sheet}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-[#C084FC] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
-                </div>
+
+                  {/* Study Year Selector */}
+                  {studyYear && onChangeStudyYear && (
+                    <div className="flex items-center gap-1.5 min-w-0 pl-1 sm:pl-2 border-l border-white/[0.08]">
+                      <Calendar className="w-3.5 h-3.5 text-[#C084FC] shrink-0" />
+                      <span className="text-[11px] text-neutral-300 font-medium hidden xs:inline">Año de estudio:</span>
+                      <div className="relative">
+                        <select
+                          value={studyYear}
+                          onChange={(e) => onChangeStudyYear(parseInt(e.target.value, 10))}
+                          className="appearance-none bg-black/50 hover:bg-black/70 text-[#C084FC] font-mono text-xs font-bold pl-2.5 pr-7 py-1.5 rounded-xl border border-[#A855F7]/40 focus:outline-none focus:border-[#C084FC] cursor-pointer transition-colors"
+                          title="Año fijado para registrar trades en este backtest"
+                        >
+                          {Array.from(new Set([
+                            studyYear,
+                            2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018
+                          ])).sort((a, b) => b - a).map((yr) => (
+                            <option key={yr} value={yr} className="bg-[#12151D] text-white">
+                              {yr}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-[#C084FC] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <span className="text-xs text-neutral-400 font-mono">
                   No hay backtests creados aún

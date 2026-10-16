@@ -16,8 +16,17 @@ import {
   Target,
   ShieldAlert,
   ArrowRightLeft,
-  Trash2
+  Trash2,
+  Calendar,
+  RotateCcw
 } from 'lucide-react';
+import { 
+  detectStudyYear, 
+  getDefaultDateForNewTrade, 
+  shiftDateYear, 
+  addDaysToDate,
+  getLatestTradeDate 
+} from '../utils/backtestDateUtils';
 
 interface TradeFormModalProps {
   isOpen: boolean;
@@ -28,6 +37,9 @@ interface TradeFormModalProps {
   onDeleteTrade?: (trade: Trade) => void;
   hoja?: string;
   isBacktest?: boolean;
+  studyYear?: number;
+  trades?: Trade[];
+  onUpdateStudyYear?: (year: number) => void;
 }
 
 export const TradeFormModal: React.FC<TradeFormModalProps> = ({
@@ -38,11 +50,25 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   onSuccess,
   onDeleteTrade,
   hoja,
-  isBacktest = false
+  isBacktest = false,
+  studyYear,
+  trades = [],
+  onUpdateStudyYear
 }) => {
   const isEditing = Boolean(tradeToEdit);
 
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const effectiveStudyYear = useMemo(() => {
+    if (studyYear) return studyYear;
+    return detectStudyYear(hoja || '', trades);
+  }, [studyYear, hoja, trades]);
+
+  const latestTradeDate = useMemo(() => {
+    return getLatestTradeDate(trades);
+  }, [trades]);
+
+  const [fecha, setFecha] = useState(() => 
+    getDefaultDateForNewTrade({ isBacktest, studyYear: effectiveStudyYear, trades })
+  );
   const [activo, setActivo] = useState('XAU/USD');
   const [direccion, setDireccion] = useState<'Buy' | 'Sell'>('Buy');
   const [entrada, setEntrada] = useState<string>('');
@@ -87,8 +113,13 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       setImagePreview(tradeToEdit.imageUrl || '');
       setSelectedFile(null);
     } else {
-      // Default blank values for new trade
-      setFecha(new Date().toISOString().split('T')[0]);
+      // Default values for new trade: automatically use the backtest study year
+      const defaultDate = getDefaultDateForNewTrade({
+        isBacktest,
+        studyYear: effectiveStudyYear,
+        trades
+      });
+      setFecha(defaultDate);
       setActivo('XAU/USD');
       setDireccion('Buy');
       setEntrada('');
@@ -106,7 +137,38 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
     }
     setErrorMessage('');
     setSuccessMessage('');
-  }, [isOpen, tradeToEdit]);
+  }, [isOpen, tradeToEdit, isBacktest, effectiveStudyYear, trades]);
+
+  // Current year in the date input
+  const currentYearInFecha = useMemo(() => {
+    if (!fecha) return null;
+    const match = fecha.match(/^(\d{4})/);
+    return match ? parseInt(match[1], 10) : null;
+  }, [fecha]);
+
+  // Alert if user is in backtest mode but the date in the input belongs to another year (e.g. current year)
+  const isYearDifferentFromStudy = Boolean(
+    isBacktest && currentYearInFecha !== null && currentYearInFecha !== effectiveStudyYear
+  );
+
+  const handleSnapToStudyYear = () => {
+    setFecha((prev) => shiftDateYear(prev, effectiveStudyYear));
+  };
+
+  const handleShiftYear = (delta: number) => {
+    const targetYr = (currentYearInFecha || effectiveStudyYear) + delta;
+    setFecha((prev) => shiftDateYear(prev, targetYr));
+  };
+
+  const handleShiftDay = (delta: number) => {
+    setFecha((prev) => addDaysToDate(prev, delta));
+  };
+
+  const handleSetToLatestTrade = () => {
+    if (latestTradeDate) {
+      setFecha(latestTradeDate);
+    }
+  };
 
   // Live evaluated outcome calculation (all hooks and calculations kept before conditional return)
   // Live evaluated outcome calculation using parseNumero
@@ -380,14 +442,96 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
           {/* 1. FECHA, 2. ACTIVO, 3. DIRECCION */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-neutral-300 block mb-1 font-medium">1. Fecha de Operación</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-neutral-300 font-medium">1. Fecha de Operación</label>
+                {isBacktest && (
+                  <span 
+                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#A855F7]/15 text-[#C084FC] border border-[#A855F7]/30 flex items-center gap-1"
+                    title={`Año de estudio fijado para este backtest: ${effectiveStudyYear}`}
+                  >
+                    <Calendar className="w-2.5 h-2.5" />
+                    <span>Año: {effectiveStudyYear}</span>
+                  </span>
+                )}
+              </div>
               <input
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full bg-white/[0.04] text-xs text-white px-3 py-2.5 rounded-xl border border-white/[0.08] font-mono focus:outline-none focus:border-[#E0B341]"
+                className={`w-full bg-white/[0.04] text-xs text-white px-3 py-2.5 rounded-xl border font-mono focus:outline-none transition-colors ${
+                  isYearDifferentFromStudy
+                    ? 'border-[#FF6B60]/60 focus:border-[#FF6B60]'
+                    : isBacktest
+                      ? 'border-[#A855F7]/30 focus:border-[#C084FC]'
+                      : 'border-white/[0.08] focus:border-[#E0B341]'
+                }`}
                 required
               />
+
+              {/* Quick Date Helpers for Backtest Mode */}
+              {isBacktest && (
+                <div className="mt-1.5 space-y-1">
+                  {/* Warning / Snap button when date is in another year (e.g. current year) */}
+                  {isYearDifferentFromStudy && (
+                    <button
+                      type="button"
+                      onClick={handleSnapToStudyYear}
+                      className="w-full px-2 py-1 text-[10px] font-bold rounded-lg bg-[#A855F7]/25 hover:bg-[#A855F7]/35 text-[#C084FC] border border-[#A855F7]/40 transition-all flex items-center justify-center gap-1 shadow-sm"
+                      title={`Cambiar fecha al año del backtest (${effectiveStudyYear}) conservando mes y día`}
+                    >
+                      <RotateCcw className="w-3 h-3 text-[#C084FC]" />
+                      <span>Fijar al año {effectiveStudyYear}</span>
+                    </button>
+                  )}
+
+                  {/* Steppers & Quick Buttons */}
+                  <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleShiftYear(-1)}
+                      className="px-1.5 py-0.5 text-[9px] font-mono rounded bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 border border-white/[0.07] transition-colors"
+                      title="Restar 1 año a la fecha actual"
+                    >
+                      -1 año
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleShiftYear(1)}
+                      className="px-1.5 py-0.5 text-[9px] font-mono rounded bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 border border-white/[0.07] transition-colors"
+                      title="Sumar 1 año a la fecha actual"
+                    >
+                      +1 año
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleShiftDay(-1)}
+                      className="px-1.5 py-0.5 text-[9px] font-mono rounded bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 border border-white/[0.07] transition-colors"
+                      title="Día anterior (-1d)"
+                    >
+                      -1d
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleShiftDay(1)}
+                      className="px-1.5 py-0.5 text-[9px] font-mono rounded bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 border border-white/[0.07] transition-colors"
+                      title="Día siguiente (+1d)"
+                    >
+                      +1d
+                    </button>
+
+                    {latestTradeDate && latestTradeDate !== fecha && (
+                      <button
+                        type="button"
+                        onClick={handleSetToLatestTrade}
+                        className="px-1.5 py-0.5 text-[9px] font-mono rounded bg-[#A855F7]/15 hover:bg-[#A855F7]/25 text-[#C084FC] border border-[#A855F7]/30 transition-colors ml-auto truncate"
+                        title={`Copiar fecha del último trade registrado (${latestTradeDate})`}
+                      >
+                        Último ({latestTradeDate.slice(5)})
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs text-neutral-300 block mb-1 font-medium">2. Activo</label>
