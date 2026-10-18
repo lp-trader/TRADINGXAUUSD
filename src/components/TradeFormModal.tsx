@@ -40,6 +40,7 @@ interface TradeFormModalProps {
   studyYear?: number;
   trades?: Trade[];
   onUpdateStudyYear?: (year: number) => void;
+  initialDate?: string | null;
 }
 
 export const TradeFormModal: React.FC<TradeFormModalProps> = ({
@@ -53,7 +54,8 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   isBacktest = false,
   studyYear,
   trades = [],
-  onUpdateStudyYear
+  onUpdateStudyYear,
+  initialDate = null
 }) => {
   const isEditing = Boolean(tradeToEdit);
 
@@ -67,7 +69,9 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
   }, [trades]);
 
   const [fecha, setFecha] = useState(() => 
-    getDefaultDateForNewTrade({ isBacktest, studyYear: effectiveStudyYear, trades })
+    initialDate
+      ? normalizeDateToYYYYMMDD(initialDate)
+      : getDefaultDateForNewTrade({ isBacktest, studyYear: effectiveStudyYear, trades })
   );
   const [activo, setActivo] = useState('XAU/USD');
   const [direccion, setDireccion] = useState<'Buy' | 'Sell'>('Buy');
@@ -113,12 +117,14 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
       setImagePreview(tradeToEdit.imageUrl || '');
       setSelectedFile(null);
     } else {
-      // Default values for new trade: automatically use the backtest study year
-      const defaultDate = getDefaultDateForNewTrade({
-        isBacktest,
-        studyYear: effectiveStudyYear,
-        trades
-      });
+      // Default values for new trade: use initialDate if specified (e.g. from calendar click), else backtest study year
+      const defaultDate = initialDate
+        ? normalizeDateToYYYYMMDD(initialDate)
+        : getDefaultDateForNewTrade({
+            isBacktest,
+            studyYear: effectiveStudyYear,
+            trades
+          });
       setFecha(defaultDate);
       setActivo('XAU/USD');
       setDireccion('Buy');
@@ -137,7 +143,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
     }
     setErrorMessage('');
     setSuccessMessage('');
-  }, [isOpen, tradeToEdit, isBacktest, effectiveStudyYear, trades]);
+  }, [isOpen, tradeToEdit, initialDate, isBacktest, effectiveStudyYear, trades]);
 
   // Current year in the date input
   const currentYearInFecha = useMemo(() => {
@@ -444,15 +450,26 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs text-neutral-300 font-medium">1. Fecha de Operación</label>
-                {isBacktest && (
-                  <span 
-                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#A855F7]/15 text-[#C084FC] border border-[#A855F7]/30 flex items-center gap-1"
-                    title={`Año de estudio fijado para este backtest: ${effectiveStudyYear}`}
-                  >
-                    <Calendar className="w-2.5 h-2.5" />
-                    <span>Año: {effectiveStudyYear}</span>
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {initialDate && !tradeToEdit && (
+                    <span 
+                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#34C97A]/15 text-[#34C97A] border border-[#34C97A]/30 flex items-center gap-1"
+                      title={`Fecha fijada directamente desde el calendario: ${fecha}`}
+                    >
+                      <CheckCircle2 className="w-2.5 h-2.5" />
+                      <span>Desde calendario</span>
+                    </span>
+                  )}
+                  {isBacktest && (
+                    <span 
+                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#A855F7]/15 text-[#C084FC] border border-[#A855F7]/30 flex items-center gap-1"
+                      title={`Año de estudio fijado para este backtest: ${effectiveStudyYear}`}
+                    >
+                      <Calendar className="w-2.5 h-2.5" />
+                      <span>Año: {effectiveStudyYear}</span>
+                    </span>
+                  )}
+                </div>
               </div>
               <input
                 type="date"

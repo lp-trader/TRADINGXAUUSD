@@ -71,6 +71,8 @@ export default function App() {
   const [tradeToDelete, setTradeToDelete] = useState<Trade | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [isNewTradeOpen, setIsNewTradeOpen] = useState<boolean>(false);
+  const [newTradeDate, setNewTradeDate] = useState<string | null>(null);
+  const [pendingDateAfterAuth, setPendingDateAfterAuth] = useState<string | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -251,27 +253,51 @@ export default function App() {
   const handleOwnerSuccess = (key: string) => {
     setOwnerKey(key);
     showToast('¡Modo Dueño activado! Ya puedes registrar y editar operaciones.');
+    if (pendingDateAfterAuth) {
+      const dateToOpen = pendingDateAfterAuth;
+      setPendingDateAfterAuth(null);
+      setTradeToEdit(null);
+      setNewTradeDate(dateToOpen);
+      setIsNewTradeOpen(true);
+    }
   };
 
   const handleLogoutOwner = () => {
     setStoredOwnerKey('');
     setOwnerKey('');
+    setPendingDateAfterAuth(null);
     showToast('Modo Dueño cerrado. Modo solo lectura activado.');
   };
 
-  const handleOpenNewTrade = () => {
+  const handleOpenNewTrade = (initialDate?: string) => {
+    if (!ownerKey) {
+      if (initialDate) setPendingDateAfterAuth(initialDate);
+      setIsAuthOpen(true);
+      showToast(initialDate 
+        ? `Activa el Modo Dueño con tu clave para registrar el trade el ${initialDate}.` 
+        : 'Activa el Modo Dueño con tu clave para registrar operaciones.'
+      );
+      return;
+    }
     setTradeToEdit(null);
+    setNewTradeDate(initialDate || null);
     setIsNewTradeOpen(true);
+  };
+
+  const handleOpenNewTradeOnDate = (dateStr: string) => {
+    handleOpenNewTrade(dateStr);
   };
 
   const handleOpenEditTrade = (trade: Trade) => {
     setTradeToEdit(trade);
+    setNewTradeDate(null);
     setIsNewTradeOpen(true);
   };
 
   const handleCloseTradeForm = () => {
     setIsNewTradeOpen(false);
     setTradeToEdit(null);
+    setNewTradeDate(null);
   };
 
   const handleTradeSavedSuccess = () => {
@@ -456,6 +482,7 @@ export default function App() {
               onSelectTrade={setSelectedTrade}
               onEditTrade={handleOpenEditTrade}
               onDeleteTrade={handleRequestDeleteTrade}
+              onNewTradeOnDate={handleOpenNewTradeOnDate}
               isOwner={isOwner}
               screenMode={screenInfo.mode}
               isBacktest={isBacktest}
@@ -515,6 +542,7 @@ export default function App() {
         studyYear={studyYear}
         trades={trades}
         onUpdateStudyYear={handleChangeStudyYear}
+        initialDate={newTradeDate}
       />
 
       {/* New Backtest Creation Modal */}

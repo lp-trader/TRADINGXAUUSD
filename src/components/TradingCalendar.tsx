@@ -16,7 +16,8 @@ import {
   Sparkles,
   Trash2,
   ListFilter,
-  LayoutGrid
+  LayoutGrid,
+  Plus
 } from 'lucide-react';
 
 interface TradingCalendarProps {
@@ -24,6 +25,7 @@ interface TradingCalendarProps {
   onSelectTrade: (trade: Trade) => void;
   onEditTrade?: (trade: Trade) => void;
   onDeleteTrade?: (trade: Trade) => void;
+  onNewTradeOnDate?: (dateStr: string) => void;
   isOwner?: boolean;
   screenMode?: 'phone' | 'tablet' | 'pc';
   isBacktest?: boolean;
@@ -72,6 +74,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
   onSelectTrade, 
   onEditTrade, 
   onDeleteTrade,
+  onNewTradeOnDate,
   isOwner = false,
   screenMode = 'pc',
   isBacktest = false,
@@ -379,7 +382,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
             </span>
           </div>
           <p className="text-xs text-neutral-400 mt-0.5">
-            Rendimiento neto y operaciones por sesión agrupadas por fecha de ejecución
+            Rendimiento neto y operaciones por sesión. <span className={`font-semibold ${isBacktest ? 'text-[#C084FC]' : 'text-[#E0B341]'}`}>Haz clic en cualquier día para registrar una operación.</span>
           </p>
         </div>
 
@@ -800,6 +803,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                       <div
                         key={dayIdx}
                         onClick={() => {
+                          if (!cell.isCurrentMonth) return;
                           if (hasTrades && cell.summary) {
                             setActiveDayModal({
                               dateStr: cell.dateStr,
@@ -807,19 +811,34 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                               trades: cell.summary.trades,
                               netMoney: cell.summary.netMoney
                             });
+                          } else if (onNewTradeOnDate) {
+                            onNewTradeOnDate(cell.dateStr);
                           }
                         }}
                         style={{
                           backgroundColor: hasTrades ? cellBg : undefined,
                           borderColor: hasTrades ? cellBorder : undefined
                         }}
-                        className={`relative min-h-[46px] xs:min-h-[52px] sm:min-h-[70px] lg:min-h-[78px] p-1 sm:p-2 rounded-lg sm:rounded-2xl border transition-all flex flex-col justify-between ${
+                        className={`group relative min-h-[46px] xs:min-h-[52px] sm:min-h-[70px] lg:min-h-[78px] p-1 sm:p-2 rounded-lg sm:rounded-2xl border transition-all flex flex-col justify-between ${
                           hasTrades ? cellBorder : 'border-white/[0.05] bg-white/[0.02]'
                         } ${todayBorder} ${opacityClass} ${
-                          hasTrades ? 'cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-95 shadow-md' : ''
+                          cell.isCurrentMonth
+                            ? hasTrades
+                              ? 'cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-95 shadow-md'
+                              : isBacktest
+                                ? 'cursor-pointer hover:border-[#A855F7]/50 hover:bg-[#A855F7]/[0.07] hover:scale-[1.02] active:scale-95'
+                                : 'cursor-pointer hover:border-[#E0B341]/50 hover:bg-[#E0B341]/[0.07] hover:scale-[1.02] active:scale-95'
+                            : ''
                         }`}
+                        title={
+                          !cell.isCurrentMonth
+                            ? undefined
+                            : hasTrades
+                              ? `Ver operaciones del ${cell.dayNumber} de ${MONTH_NAMES[viewMonth - 1]}`
+                              : `Añadir trade el ${cell.dayNumber} de ${MONTH_NAMES[viewMonth - 1]} (${cell.dateStr})`
+                        }
                       >
-                        {/* Day number + today indicator */}
+                        {/* Day number + today indicator + quick add action */}
                         <div className="flex items-center justify-between">
                           <span className={`text-[9px] xs:text-[10px] sm:text-xs font-mono font-bold leading-none ${
                             cell.isToday ? 'text-[#E0B341]' : cell.isCurrentMonth ? 'text-neutral-300' : 'text-neutral-600'
@@ -827,13 +846,37 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                             {cell.dayNumber}
                           </span>
 
-                          {cell.isToday && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#E0B341] animate-pulse" title="Hoy" />
-                          )}
+                          <div className="flex items-center gap-1">
+                            {cell.isToday && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#E0B341] animate-pulse" title="Hoy" />
+                            )}
+
+                            {cell.isCurrentMonth && onNewTradeOnDate && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onNewTradeOnDate(cell.dateStr);
+                                }}
+                                className={`w-4 h-4 sm:w-5 sm:h-5 rounded-md flex items-center justify-center transition-all ${
+                                  hasTrades
+                                    ? isBacktest
+                                      ? 'opacity-0 group-hover:opacity-100 hover:bg-[#A855F7]/30 text-[#C084FC] bg-black/40 border border-[#A855F7]/30'
+                                      : 'opacity-0 group-hover:opacity-100 hover:bg-[#E0B341]/30 text-[#E0B341] bg-black/40 border border-[#E0B341]/30'
+                                    : isBacktest
+                                      ? 'opacity-0 group-hover:opacity-100 text-[#C084FC] hover:bg-[#A855F7]/25'
+                                      : 'opacity-0 group-hover:opacity-100 text-[#E0B341] hover:bg-[#E0B341]/25'
+                                }`}
+                                title={`Añadir nuevo trade el ${cell.dayNumber} de ${MONTH_NAMES[viewMonth - 1]}`}
+                              >
+                                <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Content: Money and trades count */}
-                        {hasTrades && (
+                        {hasTrades ? (
                           <div className="my-auto text-center sm:text-right">
                             <div className={`font-mono text-[9px] xs:text-[10px] sm:text-xs lg:text-sm font-bold tabular-nums leading-tight truncate ${textColor}`}>
                               {formatMoney(netMoney)}
@@ -845,9 +888,18 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                               </div>
                             )}
                           </div>
+                        ) : cell.isCurrentMonth ? (
+                          <div className="my-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className={`text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-0.5 ${
+                              isBacktest ? 'text-[#C084FC]' : 'text-[#E0B341]'
+                            }`}>
+                              <Plus className="w-2.5 h-2.5" />
+                              <span className="hidden sm:inline">Trade</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="h-1" />
                         )}
-
-                        {!hasTrades && <div className="h-1" />}
                       </div>
                     );
                   })}
@@ -953,16 +1005,36 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <span className={`font-mono text-sm sm:text-base font-bold tabular-nums block ${
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <span className={`font-mono text-sm sm:text-base font-bold tabular-nums block leading-tight ${
                         isPos ? 'text-[#34C97A]' : isNeg ? 'text-[#FF6B60]' : 'text-neutral-400'
                       }`}>
                         {formatMoney(day.netMoney)}
                       </span>
-                      <span className="text-[10px] text-[#E0B341] group-hover:underline flex items-center justify-end gap-1 mt-0.5">
-                        <Maximize2 className="w-2.5 h-2.5" />
-                        <span>Ver trades</span>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {onNewTradeOnDate && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNewTradeOnDate(day.dateStr);
+                            }}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-colors border ${
+                              isBacktest
+                                ? 'bg-[#A855F7]/15 hover:bg-[#A855F7]/30 text-[#C084FC] border-[#A855F7]/30'
+                                : 'bg-[#E0B341]/15 hover:bg-[#E0B341]/30 text-[#E0B341] border-[#E0B341]/30'
+                            }`}
+                            title={`Añadir operación el ${day.dayNumber} de ${MONTH_NAMES[viewMonth - 1]}`}
+                          >
+                            <Plus className="w-2.5 h-2.5" />
+                            <span>+ Añadir</span>
+                          </button>
+                        )}
+                        <span className="text-[10px] text-[#E0B341] group-hover:underline flex items-center gap-1">
+                          <Maximize2 className="w-2.5 h-2.5" />
+                          <span>Ver trades</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1008,7 +1080,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
             </div>
 
             {/* Modal Day Summary Banner */}
-            <div className="px-6 py-3.5 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between">
+            <div className="px-6 py-3.5 bg-white/[0.02] border-b border-white/[0.06] flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-[11px] text-neutral-400 uppercase tracking-wider block">Resultado Diario</span>
                 <span className={`font-heading text-xl font-bold tabular-nums ${
@@ -1018,11 +1090,33 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
                 </span>
               </div>
 
-              <div className="text-right">
-                <span className="text-[11px] text-neutral-400 block">Total Operaciones</span>
-                <span className="font-mono text-xs font-semibold text-white">
-                  {activeDayModal.trades.length} {activeDayModal.trades.length === 1 ? 'trade' : 'trades'}
-                </span>
+              <div className="flex items-center gap-3">
+                {onNewTradeOnDate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetDate = activeDayModal.dateStr;
+                      setActiveDayModal(null);
+                      onNewTradeOnDate(targetDate);
+                    }}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 ${
+                      isBacktest
+                        ? 'bg-gradient-to-r from-[#A855F7] to-[#9333EA] hover:brightness-110 text-white shadow-[#A855F7]/25'
+                        : 'bg-gradient-to-r from-[#E0B341] to-[#C99C2E] hover:brightness-110 text-[#0B0D12] shadow-[#E0B341]/20'
+                    }`}
+                    title={`Añadir nueva operación el ${activeDayModal.dayNumber} de ${MONTH_NAMES[viewMonth - 1]}`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Añadir trade a este día</span>
+                  </button>
+                )}
+
+                <div className="text-right pl-3 border-l border-white/[0.08]">
+                  <span className="text-[11px] text-neutral-400 block">Operaciones</span>
+                  <span className="font-mono text-xs font-semibold text-white">
+                    {activeDayModal.trades.length} {activeDayModal.trades.length === 1 ? 'trade' : 'trades'}
+                  </span>
+                </div>
               </div>
             </div>
 
