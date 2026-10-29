@@ -28,6 +28,7 @@ import {
 import { Header } from './components/Header';
 import { HeroStats } from './components/HeroStats';
 import { TradingCalendar } from './components/TradingCalendar';
+import { MonthlyPerformance } from './components/MonthlyPerformance';
 import { EquityChart } from './components/EquityChart';
 import { MetricsBreakdown } from './components/MetricsBreakdown';
 import { TradeGallery } from './components/TradeGallery';
@@ -168,7 +169,8 @@ export default function App() {
     } else {
       loadTrades('Trades');
     }
-  }, [appMode, loadBacktestSheets, loadTrades]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appMode]);
 
   // Mode switch handler
   const handleChangeAppMode = (mode: AppMode) => {
@@ -487,6 +489,14 @@ export default function App() {
               screenMode={screenInfo.mode}
               isBacktest={isBacktest}
               studyYear={studyYear}
+            />
+
+            {/* 1.8. Rendimiento Mensual y Gráfica Cuantitativa */}
+            <MonthlyPerformance
+              trades={trades}
+              isBacktest={isBacktest}
+              studyYear={studyYear}
+              onSelectTrade={setSelectedTrade}
             />
 
             {/* 2. Equity Curve */}

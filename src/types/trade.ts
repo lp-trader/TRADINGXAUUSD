@@ -99,3 +99,4 @@ export interface GroupPerformance {
   winRate: number;
   avgRealR?: number | null;
 }
+
